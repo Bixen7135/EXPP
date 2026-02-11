@@ -20,8 +20,8 @@ CREATE TABLE IF NOT EXISTS "adaptive_metrics" (
 	"learning_style" jsonb DEFAULT '{"preferred_difficulty":"medium","optimal_time_per_question":300,"topic_engagement":{}}'::jsonb NOT NULL,
 	"overall_score" numeric(5, 2) DEFAULT '0' NOT NULL,
 	"improvement_rate" numeric(5, 2) DEFAULT '0' NOT NULL,
-	"weak_areas" text[] DEFAULT  NOT NULL,
-	"strong_areas" text[] DEFAULT  NOT NULL,
+	"weak_areas" text[] DEFAULT '{}'::text[] NOT NULL,
+	"strong_areas" text[] DEFAULT '{}'::text[] NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
 );
@@ -78,7 +78,7 @@ CREATE TABLE IF NOT EXISTS "sheet_versions" (
 	"sheet_id" uuid NOT NULL,
 	"title" text NOT NULL,
 	"description" text,
-	"tasks" uuid[] DEFAULT  NOT NULL,
+	"tasks" uuid[] DEFAULT '{}'::uuid[] NOT NULL,
 	"user_id" uuid NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
@@ -106,7 +106,7 @@ CREATE TABLE IF NOT EXISTS "study_groups" (
 	"name" text NOT NULL,
 	"description" text DEFAULT '' NOT NULL,
 	"subject" text NOT NULL,
-	"topics" text[] DEFAULT ,
+	"topics" text[] DEFAULT '{}'::text[],
 	"members" jsonb DEFAULT '[]'::jsonb NOT NULL,
 	"settings" jsonb DEFAULT '{}'::jsonb NOT NULL,
 	"stats" jsonb DEFAULT '{}'::jsonb NOT NULL,
@@ -119,8 +119,8 @@ CREATE TABLE IF NOT EXISTS "task_sheets" (
 	"user_id" uuid NOT NULL,
 	"title" text NOT NULL,
 	"description" text,
-	"tasks" uuid[] DEFAULT  NOT NULL,
-	"tags" text[] DEFAULT ,
+	"tasks" uuid[] DEFAULT '{}'::uuid[] NOT NULL,
+	"tags" text[] DEFAULT '{}'::text[],
 	"is_template" boolean DEFAULT false NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
@@ -155,7 +155,7 @@ CREATE TABLE IF NOT EXISTS "tasks" (
 	"context" text,
 	"instructions" text,
 	"learning_outcome" text,
-	"tags" text[] DEFAULT ,
+	"tags" text[] DEFAULT '{}'::text[],
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"deleted_at" timestamp with time zone

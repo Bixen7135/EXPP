@@ -28,15 +28,14 @@ COPY package.json bun.lock ./
 COPY apps/export-worker/package.json ./apps/export-worker/
 
 # Install dependencies
-RUN bun install --frozen-lockfile
+RUN bun install
 
 # Build stage
 FROM base AS builder
 WORKDIR /app
 
-# Copy dependencies
+# Copy dependencies (Bun hoists all deps to root node_modules)
 COPY --from=deps /app/node_modules ./node_modules
-COPY --from=deps /app/apps/export-worker/node_modules ./apps/export-worker/node_modules
 
 # Copy source
 COPY apps/export-worker ./apps/export-worker
