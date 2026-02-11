@@ -1,0 +1,103 @@
+services:
+  # PostgreSQL 16 - Main database
+  postgres:
+    image: postgres:16-alpine
+    container_name: expp-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-expp}
+      POSTGRES_USER: ${POSTGRES_USER:-expp_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-expp_user} -d ${POSTGRES_DB:-expp}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - expp-network
+
+  # Redis 7 - Rate limiting, sessions, caching
+  redis:
+    image: redis:7-alpine
+    container_name: expp-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-changeme}
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - expp-network
+
+  # Next.js Web App with Bun
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        - NODE_ENV=production
+    container_name: expp-web
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-expp_user}:${POSTGRES_PASSWORD:-changeme}@postgres:5432/${POSTGRES_DB:-expp}
+      - REDIS_URL=redis://:${REDIS_PASSWORD:-changeme}@redis:6379
+      - NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
+      - NEXTAUTH_URL=${NEXTAUTH_URL:-http://localhost:3000}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - EXPORT_WORKER_URL=http://export-worker:3001
+      - UPLOAD_DIR=/app/public/uploads/avatars
+    ports:
+      - "${WEB_PORT:-3000}:3000"
+    volumes:
+      - avatar_uploads:/app/public/uploads/avatars
+    networks:
+      - expp-network
+
+  # Export Worker - Pandoc + TexLive for PDF generation
+  export-worker:
+    build:
+      context: .
+      dockerfile: apps/export-worker/Dockerfile
+    container_name: expp-export-worker
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+    ports:
+      - "${EXPORT_WORKER_PORT:-3001}:3001"
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1024M
+    networks:
+      - expp-network
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  avatar_uploads:
+    driver: local
+
+networks:
+  expp-network:
+    driver: bridge

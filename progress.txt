@@ -1,0 +1,408 @@
+# EXPP Migration Progress
+
+## Phase A.1: Root Monorepo Configuration ✓
+
+### Changes Made:
+- Created root package.json with Bun workspaces configuration
+- Configured workspaces: apps/*, packages/*
+- Added root-level scripts: dev, build, typecheck, lint, db:*
+- Removed old lockfiles (npm and bun) from frontend/ and backend/
+- Created apps/ and packages/ directories
+- Updated .gitignore for monorepo structure
+
+### Commands Run:
+```bash
+rm -f frontend/package-lock.json backend/package-lock.json frontend/bun.lock backend/bun.lock
+mkdir -p apps packages
+```
+
+## Phase A.2: Database Package with Drizzle Schema ✓
+
+### Changes Made:
+- Created packages/db/ with complete Drizzle ORM setup
+- Defined 18 tables in schema.ts:
+  * 4 Auth.js tables (users, accounts, sessions, verification_tokens)
+  * 14 application tables (profiles, tasks, task_sheets, submissions, statistics, etc.)
+- Configured Drizzle with postgres driver
+- Created migration runner script
+- Generated initial migration: drizzle/0000_great_echo.sql
+
+### Package Details:
+- drizzle-orm@0.30.10
+- drizzle-kit@0.20.18
+- postgres@3.4.5
+
+### Commands Run:
+```bash
+mkdir -p packages/db/src packages/db/drizzle
+bun install
+cd packages/db && bun run generate
+```
+
+### Migration Files:
+- packages/db/drizzle/0000_great_echo.sql (17KB, 18 tables)
+- packages/db/drizzle/meta/_journal.json
+
+### Next Steps:
+- Phase A.3: Create Next.js app scaffold
+
+## Phase A.3: Next.js App Scaffold with App Router ✓
+
+### Changes Made:
+- Created apps/web/ with Next.js 15 App Router configuration
+- Configured TypeScript with strict mode and path aliases (@/*)
+- Set up Tailwind CSS with PostCSS
+- Created minimal app structure:
+  * src/app/layout.tsx (root layout with metadata)
+  * src/app/page.tsx (home page placeholder)
+  * src/app/globals.css (Tailwind directives + CSS variables)
+- Added Next.js-specific .gitignore
+
+### Package Details (apps/web):
+- next@15.1.3
+- react@19.0.0
+- react-dom@19.0.0
+- typescript@5.7.3
+- tailwindcss@3.4.17
+
+### Files Created:
+- apps/web/package.json
+- apps/web/tsconfig.json
+- apps/web/next.config.ts
+- apps/web/tailwind.config.ts
+- apps/web/postcss.config.mjs
+- apps/web/.gitignore
+- apps/web/src/app/layout.tsx
+- apps/web/src/app/page.tsx
+- apps/web/src/app/globals.css
+
+### Commands Run:
+```bash
+mkdir -p apps/web/src/app
+bun install
+bun run typecheck  # ✓ Passed
+cd apps/web && bun run build  # ✓ Built successfully (4 routes, 102 kB)
+cd apps/web && bun run dev  # ✓ Started on http://localhost:3000
+```
+
+### Verification Results:
+- TypeScript: ✓ No errors in apps/web or packages/db
+- Build: ✓ Compiled successfully in 8.9s
+- Dev server: ✓ Ready in 3.2s
+- Bundle size: 102 kB first load JS (within acceptable range)
+
+### Next Steps:
+- Phase A.4: Docker Compose configuration (Postgres, Redis, web, export-worker)
+
+## Phase A.4: Docker Compose Configuration ✓
+
+### Changes Made:
+- Created root-level docker-compose.yml with 4 services:
+  * postgres: PostgreSQL 16 with persistent volume and health checks
+  * redis: Redis 7 with persistent volume, authentication, and health checks
+  * web: Next.js app container using Bun
+  * export-worker: Pandoc + TexLive service for PDF/DOCX exports
+- Created apps/web/Dockerfile (multi-stage build with Bun)
+- Created apps/export-worker/ package:
+  * package.json with Hono framework for lightweight HTTP server
+  * tsconfig.json configured for Bun runtime
+  * src/index.ts with /health and /export/pdf endpoints
+  * Dockerfile with Debian base + Pandoc + TexLive + Bun
+- Created .env.example with all required environment variables
+- Created .dockerignore for optimized Docker build context
+- Updated .gitignore for Docker volumes and environment files
+- Updated root package.json to include export-worker in typecheck script
+- Configured Next.js with output: 'standalone' for Docker deployment
+
+### Docker Services Configuration:
+- **postgres**: Port 5432, user/password configurable via .env
+- **redis**: Port 6379, password-protected, AOF persistence enabled
+- **web**: Port 3000, depends on postgres + redis health checks
+- **export-worker**: Port 3001, resource limits (1 CPU, 1GB RAM)
+- All services connected via expp-network bridge network
+- Named volumes: postgres_data, redis_data
+
+### Environment Variables (.env.example):
+- Database: POSTGRES_DB, POSTGRES_USER, POSTGRES_PASSWORD, DATABASE_URL
+- Redis: REDIS_PASSWORD, REDIS_URL
+- Auth: NEXTAUTH_SECRET, NEXTAUTH_URL, GOOGLE_CLIENT_ID/SECRET
+- APIs: OPENAI_API_KEY
+- Services: EXPORT_WORKER_URL (internal Docker network URL)
+
+### Files Created:
+- docker-compose.yml
+- apps/web/Dockerfile
+- apps/export-worker/package.json
+- apps/export-worker/tsconfig.json
+- apps/export-worker/src/index.ts
+- apps/export-worker/Dockerfile
+- .env.example
+- .dockerignore
+
+### Files Modified:
+- apps/web/next.config.ts (added output: 'standalone')
+- apps/export-worker/package.json (added @types/bun)
+- package.json (added export-worker to typecheck, added worker:dev script)
+- .gitignore (added Docker volume directories)
+
+### Commands Run:
+```bash
+mkdir -p apps/export-worker/src
+bun install  # ✓ Installed Hono and @types/bun
+bun run typecheck  # ✓ Passed (web, db, export-worker)
+cp .env.example .env
+```
+
+### Verification Results:
+- TypeScript: ✓ No errors in apps/web, packages/db, and apps/export-worker
+- Docker Compose: Ready for testing (requires Docker Desktop to be running)
+
+### Docker Testing Required (Manual):
+To complete Phase A.4 verification, run these commands with Docker Desktop started:
+```bash
+# Build all services
+docker compose build
+
+# Start all services
+docker compose up -d
+
+# Check service health
+docker compose ps
+docker compose logs web
+docker compose logs export-worker
+
+# Test web app
+curl http://localhost:3000
+
+# Test export worker
+curl http://localhost:3001/health
+
+# Test database connection
+docker compose exec postgres psql -U expp_user -d expp -c "SELECT 1;"
+
+# Test Redis connection
+docker compose exec redis redis-cli -a changeme PING
+
+# Cleanup
+docker compose down
+```
+
+### Architecture Notes:
+- Web app connects to postgres and redis using internal Docker network URLs
+- Export worker is isolated and called by web app via HTTP
+- All services have health checks except export-worker (optional to add)
+- Resource limits on export-worker prevent memory exhaustion from TexLive
+- Volumes ensure data persistence across container restarts
+
+### Next Steps:
+- Phase A.5: Auth.js configuration with database adapter
+- Phase B: Migrate API routes from Express to Next.js API routes
+
+## Phase A.5: Auth.js Configuration with Database Adapter ✓
+
+### Changes Made:
+- Added password field to users table in database schema
+- Generated new migration (0001_closed_giant_man.sql) for password field
+- Installed Auth.js dependencies in apps/web:
+  * next-auth@5.0.0-beta.30
+  * @auth/drizzle-adapter@1.11.1
+  * bcryptjs@3.0.3
+  * zod@4.3.6
+  * ioredis@5.9.2
+  * @types/bcryptjs@3.0.0
+- Added @expp/db workspace dependency to apps/web
+- Configured Auth.js with Drizzle adapter in apps/web/src/lib/auth.ts
+- Created authentication providers:
+  * Credentials provider (email/password with bcrypt hashing)
+  * Google OAuth provider
+- Configured database session strategy (30 day expiration)
+- Implemented auto-profile creation on signup:
+  * Creates profile entry in profiles table
+  * Creates user_settings entry with defaults (theme, language, notifications)
+  * Creates user_statistics entry with initial values
+- Created Auth.js API route handler at /api/auth/[...nextauth]/route.ts
+- Created authentication helper functions in apps/web/src/lib/auth-helpers.ts:
+  * getSession() - Get current session server-side
+  * getCurrentUser() - Get current user from session
+  * requireAuth() - Require authentication with redirect
+  * getUserId() - Get authenticated user ID
+  * registerUser() - Register new user with email/password
+  * changePassword() - Change user password
+  * getUserProfile() - Get user profile data
+  * verifyOwnership() - Verify resource ownership
+- Created API routes:
+  * POST /api/auth/register - User registration endpoint
+  * POST /api/auth/change-password - Password change endpoint
+- Updated packages/db/src/index.ts to re-export drizzle-orm functions (eq, and, or, not, sql)
+
+### Database Schema Updates:
+- Added `password` field to `users` table (TEXT, nullable, for bcrypt hashes)
+- Migration file: packages/db/drizzle/0001_closed_giant_man.sql
+
+### Files Created:
+- apps/web/src/lib/auth.ts (Auth.js configuration)
+- apps/web/src/lib/auth-helpers.ts (Auth helper functions)
+- apps/web/src/app/api/auth/[...nextauth]/route.ts (Auth API handler)
+- apps/web/src/app/api/auth/register/route.ts (Registration API)
+- apps/web/src/app/api/auth/change-password/route.ts (Password change API)
+- packages/db/drizzle/0001_closed_giant_man.sql (Migration)
+
+### Files Modified:
+- packages/db/src/schema.ts (Added password field to users table)
+- packages/db/src/index.ts (Added drizzle-orm function re-exports)
+- apps/web/package.json (Added auth dependencies and @expp/db workspace dependency)
+
+### Authentication Features Implemented:
+1. ✓ Email/Password authentication with bcrypt
+2. ✓ Google OAuth integration
+3. ✓ Database session management (30 day sessions)
+4. ✓ Auto-profile creation on signup
+5. ✓ Password change functionality
+6. ✓ User registration endpoint
+7. ✓ Server-side session helpers
+
+### Commands Run:
+```bash
+cd apps/web && bun add next-auth@beta @auth/drizzle-adapter bcryptjs zod ioredis
+cd apps/web && bun add -d @types/bcryptjs
+cd packages/db && bun run generate  # Generated migration 0001
+bun install  # Installed workspace dependencies
+bun run typecheck  # ✓ Passed (all workspaces)
+```
+
+### Verification Results:
+- TypeScript: ✓ No errors in apps/web, packages/db, and apps/export-worker
+- Migration generated: ✓ 0001_closed_giant_man.sql created
+- Dependencies installed: ✓ All Auth.js packages installed
+- Workspace linking: ✓ @expp/db linked to apps/web
+
+### Authentication Flow:
+1. **Sign Up (Email/Password)**:
+   - POST /api/auth/register with {email, password, firstName, lastName}
+   - Password hashed with bcrypt (10 rounds)
+   - User created in users table
+   - Profile, settings, and statistics auto-created
+   - Returns user object
+
+2. **Sign In (Email/Password)**:
+   - POST /api/auth/signin with {email, password}
+   - Credentials validated via Credentials provider
+   - Password verified with bcrypt.compare()
+   - Database session created (30 day expiration)
+   - Returns session with user data
+
+3. **Sign In (Google OAuth)**:
+   - Redirect to /api/auth/signin?provider=google
+   - Google OAuth flow handled by Auth.js
+   - Profile auto-created on first login
+   - Database session created
+   - Redirects to app
+
+4. **Session Management**:
+   - Sessions stored in database (sessions table)
+   - Session token in HTTP-only cookie
+   - Auto-refreshed every 24 hours
+   - 30 day maximum age
+
+5. **Password Change**:
+   - POST /api/auth/change-password with {currentPassword, newPassword}
+   - Requires active session
+   - Current password verified
+   - New password hashed and stored
+
+### Architecture Notes:
+- Auth.js v5 (beta) with App Router support
+- Database adapter for session persistence
+- Server-side only authentication (no client-side Supabase)
+- Bcrypt for password hashing (10 rounds)
+- Zod for input validation
+- Type-safe with TypeScript
+- Follows Next.js 15 App Router patterns
+
+### Migration Checklist Updates:
+- ✓ Email/Password login implemented
+- ✓ Google OAuth implemented
+- ✓ Session management with database
+- ✓ Password change functionality
+- ✓ User registration with auto-profile creation
+- ✓ Auto-create user_settings and user_statistics on signup
+
+### Next Steps:
+- Phase B.1: Create basic API routes structure (/api/tasks, /api/sheets, /api/profile)
+- Phase B.2: Migrate task CRUD operations from Express to Next.js
+- Phase B.3: Migrate sheet operations and versioning
+- Phase B.4: Set up Redis for rate limiting (OpenAI, export)
+- Phase B.5: Implement export worker integration
+
+## Phase B.0: Infrastructure Setup ✓
+
+### Changes Made:
+- Created Redis client singleton with retry logic (apps/web/src/lib/redis.ts)
+- Created rate limiting utilities with sliding window algorithm (apps/web/src/lib/rate-limit.ts)
+- Created API helper functions for errors, pagination, validation (apps/web/src/lib/api-helpers.ts)
+- Created avatar storage utilities for local file uploads (apps/web/src/lib/avatar-storage.ts)
+- Added full-text search migration for tasks table (packages/db/drizzle/0002_add_fulltext_index.sql)
+- Updated docker-compose.yml with avatar_uploads volume and UPLOAD_DIR environment variable
+
+### Files Created:
+- apps/web/src/lib/redis.ts (Redis client)
+- apps/web/src/lib/rate-limit.ts (Rate limiting with Redis)
+- apps/web/src/lib/api-helpers.ts (API utilities)
+- apps/web/src/lib/avatar-storage.ts (Avatar file storage)
+- packages/db/drizzle/0002_add_fulltext_index.sql (Full-text search index)
+
+### Files Modified:
+- docker-compose.yml (Added avatar_uploads volume, UPLOAD_DIR env var)
+
+### Infrastructure Features:
+1. **Redis Client**:
+   - Singleton pattern with connection pooling
+   - Automatic retry logic (max 3 retries, exponential backoff)
+   - Event handlers for error, connect, ready states
+   - Graceful shutdown support
+
+2. **Rate Limiting**:
+   - Sliding window algorithm using Redis sorted sets
+   - Configurable limits per endpoint (requests per time window)
+   - Returns retry-after header when limit exceeded
+   - Fail-open strategy (allows requests on Redis errors)
+   - Functions: checkRateLimit(), resetRateLimit(), getRateLimitStatus()
+
+3. **API Helpers**:
+   - buildSuccessResponse() - Standard success format
+   - buildErrorResponse() - Standard error format
+   - handleApiError() - Unified error handling (Zod, Auth, Not Found, etc.)
+   - validatePagination() - Extract page, limit, offset from URL params
+   - buildPaginationMeta() - Create pagination metadata
+   - parseArrayParam() - Parse multi-value query params
+   - parseBooleanParam() - Parse boolean query params
+   - validateFile() - File upload validation
+
+4. **Avatar Storage**:
+   - Local file storage in /app/public/uploads/avatars
+   - Allowed types: JPEG, PNG, WebP
+   - Max size: 5MB
+   - Auto-create directories if missing
+   - Functions: saveAvatar(), deleteAvatar(), validateAvatarFile()
+
+5. **Full-Text Search**:
+   - Generated tsvector column on tasks.text using English dictionary
+   - GIN index for fast full-text queries
+   - Query pattern: `sql\`text_tsv @@ plainto_tsquery('english', ${query})\``
+
+### Commands Run:
+```bash
+bun run typecheck  # ✓ Passed (all workspaces)
+```
+
+### Verification Results:
+- TypeScript: ✓ No errors in apps/web, packages/db, apps/export-worker
+- Infrastructure files created: ✓ All 5 files
+- Docker configuration updated: ✓ Volume and env var added
+- Migration ready: ✓ 0002_add_fulltext_index.sql created
+
+### Next Steps:
+- Phase B.1: Tasks API (GET, POST, PATCH, DELETE with soft delete)
+- Generate and apply 0002 migration: `cd packages/db && bun run generate`
+- Test Redis connection with Docker: `docker compose up -d redis`
+
