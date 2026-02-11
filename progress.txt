@@ -406,3 +406,80 @@ bun run typecheck  # ✓ Passed (all workspaces)
 - Generate and apply 0002 migration: `cd packages/db && bun run generate`
 - Test Redis connection with Docker: `docker compose up -d redis`
 
+
+## Phase B.1: Tasks API ✓
+
+### Changes Made:
+- Created Zod validation schemas for task operations (apps/web/src/lib/schemas/task-schemas.ts)
+- Implemented GET /api/tasks - List tasks with pagination, filtering (type, topic, difficulty)
+- Implemented POST /api/tasks - Bulk upsert tasks (insert or update on conflict)
+- Implemented DELETE /api/tasks - Soft delete tasks (set deletedAt timestamp)
+- Implemented GET /api/tasks/[id] - Get single task by ID with ownership check
+- Implemented PATCH /api/tasks/[id] - Update task with ownership check
+- Updated packages/db to export additional Drizzle functions (isNull, desc, count, inArray)
+
+### Files Created:
+- apps/web/src/lib/schemas/task-schemas.ts (Zod schemas)
+- apps/web/src/app/api/tasks/route.ts (GET, POST, DELETE)
+- apps/web/src/app/api/tasks/[id]/route.ts (GET, PATCH)
+
+### Files Modified:
+- packages/db/src/index.ts (Added drizzle-orm function exports)
+
+### API Routes Implemented:
+1. **GET /api/tasks**:
+   - Query params: page, limit, type, topic, difficulty, includeDeleted
+   - Returns paginated task list with metadata
+   - Filters out soft-deleted tasks by default
+   - Auth required
+
+2. **POST /api/tasks**:
+   - Body: { tasks: Task[] }
+   - Bulk upsert (insert or update on conflict by task ID)
+   - Auto-sets userId from authenticated session
+   - Returns array of task IDs
+   - Auth required
+
+3. **DELETE /api/tasks**:
+   - Body: { taskIds: string[] }
+   - Soft delete: sets deletedAt timestamp
+   - Verifies ownership for all tasks
+   - Returns deleted count
+   - Auth required
+
+4. **GET /api/tasks/[id]**:
+   - Fetches single task by ID
+   - Ownership verification
+   - Returns 404 if not found or deleted
+   - Auth required
+
+5. **PATCH /api/tasks/[id]**:
+   - Body: Partial task updates
+   - Ownership verification
+   - Updates updatedAt timestamp
+   - Auth required
+
+### Patterns Established:
+- All routes use getUserId() for authentication
+- Zod schemas for input validation
+- Standardized error handling with handleApiError()
+- Standardized responses with buildSuccessResponse()
+- Pagination with buildPaginationMeta()
+- Soft delete pattern (deletedAt field)
+- Drizzle ORM query patterns (select, insert, update with conditions)
+
+### Commands Run:
+```bash
+bun run typecheck  # ✓ Passed (all workspaces)
+```
+
+### Verification Results:
+- TypeScript: ✓ No errors
+- API routes: ✓ 5 endpoints implemented
+- Schemas: ✓ Zod validation for all inputs
+- Auth: ✓ All routes enforce server-side authentication
+- Soft delete: ✓ Implemented with deletedAt field
+
+### Next Steps:
+- Phase B.2: Sheets API (CRUD + versioning, sharing, copying)
+
