@@ -17,6 +17,13 @@ declare module "next-auth" {
   }
 }
 
+// Custom JWT payload fields added in callbacks
+interface AppToken {
+  id: string;
+  firstName?: string;
+  lastName?: string;
+}
+
 const signInSchema = z.object({
   email: z.string().email(),
   password: z.string().min(6),
@@ -84,7 +91,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     }),
   ],
   session: {
-    strategy: "database",
+    strategy: "jwt",
     maxAge: 30 * 24 * 60 * 60, // 30 days
     updateAge: 24 * 60 * 60, // 24 hours
   },
@@ -145,21 +152,35 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       }
       return true;
     },
-    async session({ session, user }) {
-      if (session.user) {
-        session.user.id = user.id;
+    async jwt({ token, user, trigger }) {
+      const t = token as Record<string, unknown> & AppToken;
+      // On initial sign-in, user object is available
+      if (user) {
+        t.id = user.id!;
+      }
 
-        // Fetch profile data
+      // Fetch profile data on sign-in or session update
+      if (user || trigger === "update") {
         const [profile] = await db
           .select()
           .from(profiles)
-          .where(eq(profiles.id, user.id))
+          .where(eq(profiles.id, t.id))
           .limit(1);
 
         if (profile) {
-          session.user.firstName = profile.firstName;
-          session.user.lastName = profile.lastName;
+          t.firstName = profile.firstName;
+          t.lastName = profile.lastName;
         }
+      }
+
+      return t;
+    },
+    async session({ session, token }) {
+      const t = token as unknown as AppToken;
+      if (session.user) {
+        session.user.id = t.id;
+        session.user.firstName = t.firstName;
+        session.user.lastName = t.lastName;
       }
       return session;
     },
