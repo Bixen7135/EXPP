@@ -483,3 +483,126 @@ bun run typecheck  # ✓ Passed (all workspaces)
 ### Next Steps:
 - Phase B.2: Sheets API (CRUD + versioning, sharing, copying)
 
+
+## Phase B.2: Sheets API ✓
+
+### Changes Made:
+- Created Zod validation schemas for sheet operations (apps/web/src/lib/schemas/sheet-schemas.ts)
+- Implemented GET /api/sheets - List sheets with pagination, filtering (isTemplate, tags)
+- Implemented POST /api/sheets - Create new sheet with task validation
+- Implemented DELETE /api/sheets - Delete multiple sheets (ownership verified)
+- Implemented GET /api/sheets/[id] - Get single sheet by ID with ownership check
+- Implemented PUT /api/sheets/[id] - Update sheet with ownership check
+- Implemented DELETE /api/sheets/[id] - Delete single sheet with ownership check
+- Implemented POST /api/sheets/[id]/copy - Copy sheet with optional new title
+- Implemented POST /api/sheets/[id]/share - Share sheet with another user (checks recipient exists)
+- Implemented GET /api/sheets/[id]/versions - List sheet versions with pagination
+- Implemented POST /api/sheets/[id]/versions - Create new version (snapshot)
+
+### Files Created:
+- apps/web/src/lib/schemas/sheet-schemas.ts (Zod schemas for sheets)
+- apps/web/src/app/api/sheets/route.ts (GET, POST, DELETE)
+- apps/web/src/app/api/sheets/[id]/route.ts (GET, PUT, DELETE)
+- apps/web/src/app/api/sheets/[id]/copy/route.ts (POST)
+- apps/web/src/app/api/sheets/[id]/share/route.ts (POST)
+- apps/web/src/app/api/sheets/[id]/versions/route.ts (GET, POST)
+
+### API Routes Implemented:
+1. **GET /api/sheets**:
+   - Query params: page, limit, isTemplate, tags (comma-separated)
+   - Returns paginated sheet list with metadata
+   - Filters by isTemplate boolean and tag array
+   - Auth required
+
+2. **POST /api/sheets**:
+   - Body: { title, description?, tasks[], tags[], isTemplate? }
+   - Auto-sets userId from authenticated session
+   - Returns created sheet
+   - Auth required
+
+3. **DELETE /api/sheets**:
+   - Body: { sheetIds: string[] }
+   - Hard delete: removes sheets from database
+   - Verifies ownership for all sheets
+   - Returns deleted count
+   - Auth required
+
+4. **GET /api/sheets/[id]**:
+   - Fetches single sheet by ID
+   - Ownership verification
+   - Returns 404 if not found
+   - Auth required
+
+5. **PUT /api/sheets/[id]**:
+   - Body: Partial sheet updates
+   - Ownership verification
+   - Updates updatedAt timestamp
+   - Auth required
+
+6. **DELETE /api/sheets/[id]**:
+   - Deletes single sheet
+   - Ownership verification
+   - Auth required
+
+7. **POST /api/sheets/[id]/copy**:
+   - Body: { title?: string }
+   - Creates a copy of the sheet with new title or "(Copy)" suffix
+   - Copies are never templates by default
+   - Auth required
+
+8. **POST /api/sheets/[id]/share**:
+   - Body: { recipientId: string }
+   - Creates entry in shared_sheets table
+   - Validates recipient exists
+   - Prevents sharing with self
+   - Checks for duplicate shares
+   - Auth required
+
+9. **GET /api/sheets/[id]/versions**:
+   - Query params: page, limit
+   - Returns paginated list of versions (newest first)
+   - Ownership verification on parent sheet
+   - Auth required
+
+10. **POST /api/sheets/[id]/versions**:
+    - Body: { title, description?, tasks[] }
+    - Creates version snapshot with user ID
+    - Ownership verification on parent sheet
+    - Auth required
+
+### Patterns Established:
+- All routes use getUserId() for authentication
+- Zod schemas for input validation
+- Standardized error handling with handleApiError(error, context)
+- Standardized responses with buildSuccessResponse(data, status?)
+- Pagination with buildPaginationMeta(page, limit, total)
+- Hard delete pattern for sheets (no soft delete)
+- Ownership verification before mutations
+- Drizzle ORM query patterns (select, insert, update, delete with conditions)
+
+### Commands Run:
+```bash
+bun run typecheck  # ✓ Passed (all workspaces)
+DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy" bun run --cwd apps/web build  # ✓ Built successfully
+```
+
+### Verification Results:
+- TypeScript: ✓ No errors
+- Build: ✓ Compiled successfully (12 routes, 102 kB first load JS)
+- API routes: ✓ 10 endpoints implemented across 6 files
+- Schemas: ✓ Zod validation for all inputs
+- Auth: ✓ All routes enforce server-side authentication
+- Ownership checks: ✓ Implemented for all mutations and reads
+- Versioning: ✓ Sheet versions support with pagination
+- Sharing: ✓ Sheet sharing with validation
+- Database client: ✓ Updated to lazy initialization pattern to support Next.js builds
+
+### Files Modified (Build Fix):
+- packages/db/src/client.ts (Changed to lazy Proxy pattern for Next.js build compatibility)
+- apps/web/src/app/api/tasks/[id]/route.ts (Fixed RouteContext type to use Promise for Next.js 15)
+
+### Next Steps:
+- Phase B.3: Profile API (GET, PUT, avatar upload)
+- Run build verification: `bun run build`
+- Test Docker Compose setup once ready
+

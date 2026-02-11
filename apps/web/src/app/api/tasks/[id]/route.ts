@@ -8,17 +8,21 @@ import {
   handleApiError,
 } from '@/lib/api-helpers';
 
+type RouteContext = {
+  params: Promise<{ id: string }>;
+};
+
 /**
  * GET /api/tasks/[id]
  * Get a single task by ID
  */
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  context: RouteContext
 ) {
   try {
     const userId = await getUserId();
-    const { id } = params;
+    const { id } = await context.params;
 
     // Fetch task
     const [task] = await db
@@ -48,11 +52,11 @@ export async function GET(
  */
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  context: RouteContext
 ) {
   try {
     const userId = await getUserId();
-    const { id } = params;
+    const { id } = await context.params;
     const body = await req.json();
 
     // Validate input
