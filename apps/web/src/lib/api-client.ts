@@ -153,11 +153,54 @@ export interface OpenAIChatRequest {
 }
 
 // Profile types
+export interface ProfileData {
+  id: string;
+  firstName: string | null;
+  lastName: string | null;
+  avatarUrl: string | null;
+  preferences: Record<string, unknown> | null;
+  isAdmin: boolean;
+  createdAt: string;
+  updatedAt: string | null;
+}
+
 export interface UpdateProfileInput {
   firstName?: string;
   lastName?: string;
   avatarUrl?: string;
   preferences?: Record<string, unknown>;
+}
+
+export interface UserStatistics {
+  userId: string;
+  solvedTasks: number;
+  totalTaskAttempts: number;
+  solvedSheets: number;
+  totalSheetAttempts: number;
+  successRate: number;
+  averageScore: number;
+  totalTimeSpent: number;
+  tasksByDifficulty: {
+    easy: number;
+    medium: number;
+    hard: number;
+  };
+  tasksByTopic: Record<string, { correct: number; total: number }>;
+  tasksByType: Record<string, { correct: number; total: number }>;
+  recentActivity: unknown[];
+  lastActivityAt: string | null;
+  createdAt: string;
+  updatedAt: string | null;
+}
+
+export interface UserSettings {
+  userId: string;
+  theme: 'light' | 'dark' | 'system';
+  language: string;
+  notificationsEnabled: boolean;
+  preferences: Record<string, unknown> | null;
+  createdAt: string;
+  updatedAt: string | null;
 }
 
 // Settings types
@@ -352,8 +395,8 @@ export class ApiClient {
       {},
       this.fetchFn
     );
-    const result = await parseApiResponse(response);
-    return result.data as { tasks: unknown[]; pagination: PaginationMeta };
+    const { data } = await parseApiResponse(response);
+    return data as { tasks: unknown[]; pagination: PaginationMeta };
   }
 
   /**
@@ -366,8 +409,8 @@ export class ApiClient {
       {},
       this.fetchFn
     );
-    const result = await parseApiResponse(response);
-    return result.data;
+    const { data } = await parseApiResponse(response);
+    return data;
   }
 
   /**
@@ -383,8 +426,8 @@ export class ApiClient {
       },
       this.fetchFn
     );
-    const result = await parseApiResponse(response);
-    return result.data as { taskIds: string[]; count: number };
+    const { data } = await parseApiResponse(response);
+    return data as { taskIds: string[]; count: number };
   }
 
   /**
@@ -400,8 +443,8 @@ export class ApiClient {
       },
       this.fetchFn
     );
-    const result = await parseApiResponse(response);
-    return result.data;
+    const { data } = await parseApiResponse(response);
+    return data;
   }
 
   /**
@@ -417,8 +460,8 @@ export class ApiClient {
       },
       this.fetchFn
     );
-    const result = await parseApiResponse(response);
-    return result.data;
+    const { data } = await parseApiResponse(response);
+    return data as { deletedCount: number };
   }
 
   // ========================================================================
@@ -439,8 +482,8 @@ export class ApiClient {
       {},
       this.fetchFn
     );
-    const result = await parseApiResponse(response);
-    return result.data;
+    const { data } = await parseApiResponse(response);
+    return data as { sheets: unknown[]; pagination: PaginationMeta };
   }
 
   /**
@@ -453,8 +496,8 @@ export class ApiClient {
       {},
       this.fetchFn
     );
-    const result = await parseApiResponse(response);
-    return result.data;
+    const { data } = await parseApiResponse(response);
+    return data as { sheet: unknown };
   }
 
   /**
@@ -470,8 +513,8 @@ export class ApiClient {
       },
       this.fetchFn
     );
-    const result = await parseApiResponse(response);
-    return result.data;
+    const { data } = await parseApiResponse(response);
+    return data as { sheet: unknown };
   }
 
   /**
@@ -487,8 +530,8 @@ export class ApiClient {
       },
       this.fetchFn
     );
-    const result = await parseApiResponse(response);
-    return result.data;
+    const { data } = await parseApiResponse(response);
+    return data as { sheet: unknown };
   }
 
   /**
@@ -504,8 +547,8 @@ export class ApiClient {
       },
       this.fetchFn
     );
-    const result = await parseApiResponse(response);
-    return result.data;
+    const { data } = await parseApiResponse(response);
+    return data as { deletedCount: number };
   }
 
   /**
@@ -518,8 +561,8 @@ export class ApiClient {
       { method: 'POST' },
       this.fetchFn
     );
-    const result = await parseApiResponse(response);
-    return result.data;
+    const { data } = await parseApiResponse(response);
+    return data as { sheet: unknown };
   }
 
   /**
@@ -535,8 +578,8 @@ export class ApiClient {
       },
       this.fetchFn
     );
-    const result = await parseApiResponse(response);
-    return result.data;
+    const { data } = await parseApiResponse(response);
+    return data as { sheet: unknown };
   }
 
   /**
@@ -549,8 +592,8 @@ export class ApiClient {
       {},
       this.fetchFn
     );
-    const result = await parseApiResponse(response);
-    return result.data;
+    const { data } = await parseApiResponse(response);
+    return data as { versions: unknown[] };
   }
 
   /**
@@ -563,8 +606,8 @@ export class ApiClient {
       { method: 'POST' },
       this.fetchFn
     );
-    const result = await parseApiResponse(response);
-    return result.data;
+    const { data } = await parseApiResponse(response);
+    return data as { version: unknown };
   }
 
   // ========================================================================
@@ -576,7 +619,8 @@ export class ApiClient {
    * POST /api/openai/chat
    */
   async chatCompletion(input: OpenAIChatRequest): Promise<{
-    data: { rateLimit?: RateLimitInfo };
+    data: unknown;
+    rateLimit?: RateLimitInfo;
   }> {
     const response = await apiFetch(
       `${this.baseUrl}/api/openai/chat`,
@@ -587,8 +631,8 @@ export class ApiClient {
       this.fetchFn
     );
 
-    const result = await parseApiResponse<unknown>(response);
-    return { data: { rateLimit: result.rateLimit } };
+    const { data, rateLimit } = await parseApiResponse<unknown>(response);
+    return { data, rateLimit };
   }
 
   // ========================================================================
@@ -608,8 +652,8 @@ export class ApiClient {
       },
       this.fetchFn
     );
-    const result = await parseApiResponse(response);
-    return result.data;
+    const { data } = await parseApiResponse(response);
+    return data as Blob;
   }
 
   // ========================================================================
@@ -620,21 +664,21 @@ export class ApiClient {
    * Get current user's profile
    * GET /api/profile
    */
-  async getProfile(): Promise<unknown> {
+  async getProfile(): Promise<ProfileData> {
     const response = await apiFetch(
       `${this.baseUrl}/api/profile`,
       {},
       this.fetchFn
     );
-    const result = await parseApiResponse(response);
-    return result.data;
+    const { data } = await parseApiResponse(response);
+    return data as ProfileData;
   }
 
   /**
    * Update current user's profile
    * PUT /api/profile
    */
-  async updateProfile(input: UpdateProfileInput): Promise<unknown> {
+  async updateProfile(input: UpdateProfileInput): Promise<ProfileData> {
     const response = await apiFetch(
       `${this.baseUrl}/api/profile`,
       {
@@ -643,8 +687,8 @@ export class ApiClient {
       },
       this.fetchFn
     );
-    const result = await parseApiResponse(response);
-    return result.data;
+    const { data } = await parseApiResponse(response);
+    return data as ProfileData;
   }
 
   /**
@@ -664,8 +708,8 @@ export class ApiClient {
       },
       this.fetchFn
     );
-    const result = await parseApiResponse(response);
-    return result.data;
+    const { data } = await parseApiResponse(response);
+    return data as { avatarUrl: string };
   }
 
   // ========================================================================
@@ -676,21 +720,21 @@ export class ApiClient {
    * Get user settings
    * GET /api/settings
    */
-  async getSettings(): Promise<unknown> {
+  async getSettings(): Promise<UserSettings> {
     const response = await apiFetch(
       `${this.baseUrl}/api/settings`,
       {},
       this.fetchFn
     );
-    const result = await parseApiResponse(response);
-    return result.data;
+    const { data } = await parseApiResponse(response);
+    return data as UserSettings;
   }
 
   /**
    * Update user settings
    * PUT /api/settings
    */
-  async updateSettings(input: UpdateSettingsInput): Promise<unknown> {
+  async updateSettings(input: UpdateSettingsInput): Promise<UserSettings> {
     const response = await apiFetch(
       `${this.baseUrl}/api/settings`,
       {
@@ -699,8 +743,8 @@ export class ApiClient {
       },
       this.fetchFn
     );
-    const result = await parseApiResponse(response);
-    return result.data;
+    const { data } = await parseApiResponse(response);
+    return data as UserSettings;
   }
 
   // ========================================================================
@@ -711,14 +755,14 @@ export class ApiClient {
    * Get user statistics
    * GET /api/statistics
    */
-  async getStatistics(): Promise<unknown> {
+  async getStatistics(): Promise<UserStatistics> {
     const response = await apiFetch(
       `${this.baseUrl}/api/statistics`,
       {},
       this.fetchFn
     );
-    const result = await parseApiResponse(response);
-    return result.data;
+    const { data } = await parseApiResponse(response);
+    return data as UserStatistics;
   }
 
   /**
@@ -731,8 +775,8 @@ export class ApiClient {
       {},
       this.fetchFn
     );
-    const result = await parseApiResponse(response);
-    return result.data;
+    const { data } = await parseApiResponse(response);
+    return data;
   }
 
   // ========================================================================
@@ -753,8 +797,8 @@ export class ApiClient {
       {},
       this.fetchFn
     );
-    const result = await parseApiResponse(response);
-    return result.data;
+    const { data } = await parseApiResponse(response);
+    return data as { submissions: unknown[]; pagination: PaginationMeta };
   }
 
   /**
@@ -770,8 +814,8 @@ export class ApiClient {
       },
       this.fetchFn
     );
-    const result = await parseApiResponse(response);
-    return result.data;
+    const { data } = await parseApiResponse(response);
+    return data;
   }
 
   /**
@@ -788,8 +832,8 @@ export class ApiClient {
       {},
       this.fetchFn
     );
-    const result = await parseApiResponse(response);
-    return result.data;
+    const { data } = await parseApiResponse(response);
+    return data as { submissions: unknown[]; pagination: PaginationMeta };
   }
 
   /**
@@ -805,8 +849,8 @@ export class ApiClient {
       },
       this.fetchFn
     );
-    const result = await parseApiResponse(response);
-    return result.data;
+    const { data } = await parseApiResponse(response);
+    return data;
   }
 
   // ========================================================================
@@ -830,8 +874,8 @@ export class ApiClient {
       {},
       this.fetchFn
     );
-    const result = await parseApiResponse(response);
-    return result.data;
+    const { data } = await parseApiResponse(response);
+    return data as { results: { tasks?: unknown[]; sheets?: unknown[] }; pagination: PaginationMeta };
   }
 
   // ========================================================================
@@ -851,8 +895,8 @@ export class ApiClient {
       },
       this.fetchFn
     );
-    const result = await parseApiResponse(response);
-    return result.data;
+    const { data } = await parseApiResponse(response);
+    return data as { user: unknown };
   }
 
   /**
@@ -868,8 +912,8 @@ export class ApiClient {
       },
       this.fetchFn
     );
-    const result = await parseApiResponse(response);
-    return result.data;
+    const { data } = await parseApiResponse(response);
+    return data as { success: boolean };
   }
 
   /**

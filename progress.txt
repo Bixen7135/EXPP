@@ -1,8 +1,6 @@
 # EXPP Migration Progress
 
 ## Phase A.1: Root Monorepo Configuration ✓
-
-### Changes Made:
 - Created root package.json with Bun workspaces configuration
 - Configured workspaces: apps/*, packages/*
 - Added root-level scripts: dev, build, typecheck, lint, db:*
@@ -10,15 +8,7 @@
 - Created apps/ and packages/ directories
 - Updated .gitignore for monorepo structure
 
-### Commands Run:
-```bash
-rm -f frontend/package-lock.json backend/package-lock.json frontend/bun.lock backend/bun.lock
-mkdir -p apps packages
-```
-
 ## Phase A.2: Database Package with Drizzle Schema ✓
-
-### Changes Made:
 - Created packages/db/ with complete Drizzle ORM setup
 - Defined 18 tables in schema.ts:
   * 4 Auth.js tables (users, accounts, sessions, verification_tokens)
@@ -27,28 +17,7 @@ mkdir -p apps packages
 - Created migration runner script
 - Generated initial migration: drizzle/0000_great_echo.sql
 
-### Package Details:
-- drizzle-orm@0.30.10
-- drizzle-kit@0.20.18
-- postgres@3.4.5
-
-### Commands Run:
-```bash
-mkdir -p packages/db/src packages/db/drizzle
-bun install
-cd packages/db && bun run generate
-```
-
-### Migration Files:
-- packages/db/drizzle/0000_great_echo.sql (17KB, 18 tables)
-- packages/db/drizzle/meta/_journal.json
-
-### Next Steps:
-- Phase A.3: Create Next.js app scaffold
-
-## Phase A.3: Next.js App Scaffold with App Router ✓
-
-### Changes Made:
+## Phase A.3: Create Next.js app scaffold ✓
 - Created apps/web/ with Next.js 15 App Router configuration
 - Configured TypeScript with strict mode and path aliases (@/*)
 - Set up Tailwind CSS with PostCSS
@@ -56,151 +25,26 @@ cd packages/db && bun run generate
   * src/app/layout.tsx (root layout with metadata)
   * src/app/page.tsx (home page placeholder)
   * src/app/globals.css (Tailwind directives + CSS variables)
-- Added Next.js-specific .gitignore
-
-### Package Details (apps/web):
-- next@15.1.3
-- react@19.0.0
-- react-dom@19.0.0
-- typescript@5.7.3
-- tailwindcss@3.4.17
-
-### Files Created:
-- apps/web/package.json
-- apps/web/tsconfig.json
-- apps/web/next.config.ts
-- apps/web/tailwind.config.ts
-- apps/web/postcss.config.mjs
-- apps/web/.gitignore
-- apps/web/src/app/layout.tsx
-- apps/web/src/app/page.tsx
-- apps/web/src/app/globals.css
-
-### Commands Run:
-```bash
-mkdir -p apps/web/src/app
-bun install
-bun run typecheck  # ✓ Passed
-cd apps/web && bun run build  # ✓ Built successfully (4 routes, 102 kB)
-cd apps/web && bun run dev  # ✓ Started on http://localhost:3000
-```
-
-### Verification Results:
-- TypeScript: ✓ No errors in apps/web or packages/db
-- Build: ✓ Compiled successfully in 8.9s
-- Dev server: ✓ Ready in 3.2s
-- Bundle size: 102 kB first load JS (within acceptable range)
-
-### Next Steps:
-- Phase A.4: Docker Compose configuration (Postgres, Redis, web, export-worker)
+  * Added Next.js-specific .gitignore
+- Updated root package.json to include export-worker in typecheck script
+- Configured Next.js with output: 'standalone' for Docker deployment
 
 ## Phase A.4: Docker Compose Configuration ✓
-
-### Changes Made:
 - Created root-level docker-compose.yml with 4 services:
   * postgres: PostgreSQL 16 with persistent volume and health checks
   * redis: Redis 7 with persistent volume, authentication, and health checks
   * web: Next.js app container using Bun
   * export-worker: Pandoc + TexLive service for PDF/DOCX exports
-- Created apps/web/Dockerfile (multi-stage build with Bun)
 - Created apps/export-worker/ package:
   * package.json with Hono framework for lightweight HTTP server
-  * tsconfig.json configured for Bun runtime
   * src/index.ts with /health and /export/pdf endpoints
   * Dockerfile with Debian base + Pandoc + TexLive + Bun
 - Created .env.example with all required environment variables
 - Created .dockerignore for optimized Docker build context
-- Updated .gitignore for Docker volumes and environment files
 - Updated root package.json to include export-worker in typecheck script
 - Configured Next.js with output: 'standalone' for Docker deployment
 
-### Docker Services Configuration:
-- **postgres**: Port 5432, user/password configurable via .env
-- **redis**: Port 6379, password-protected, AOF persistence enabled
-- **web**: Port 3000, depends on postgres + redis health checks
-- **export-worker**: Port 3001, resource limits (1 CPU, 1GB RAM)
-- All services connected via expp-network bridge network
-- Named volumes: postgres_data, redis_data
-
-### Environment Variables (.env.example):
-- Database: POSTGRES_DB, POSTGRES_USER, POSTGRES_PASSWORD, DATABASE_URL
-- Redis: REDIS_PASSWORD, REDIS_URL
-- Auth: NEXTAUTH_SECRET, NEXTAUTH_URL, GOOGLE_CLIENT_ID/SECRET
-- APIs: OPENAI_API_KEY
-- Services: EXPORT_WORKER_URL (internal Docker network URL)
-
-### Files Created:
-- docker-compose.yml
-- apps/web/Dockerfile
-- apps/export-worker/package.json
-- apps/export-worker/tsconfig.json
-- apps/export-worker/src/index.ts
-- apps/export-worker/Dockerfile
-- .env.example
-- .dockerignore
-
-### Files Modified:
-- apps/web/next.config.ts (added output: 'standalone')
-- apps/export-worker/package.json (added @types/bun)
-- package.json (added export-worker to typecheck, added worker:dev script)
-- .gitignore (added Docker volume directories)
-
-### Commands Run:
-```bash
-mkdir -p apps/export-worker/src
-bun install  # ✓ Installed Hono and @types/bun
-bun run typecheck  # ✓ Passed (web, db, export-worker)
-cp .env.example .env
-```
-
-### Verification Results:
-- TypeScript: ✓ No errors in apps/web, packages/db, and apps/export-worker
-- Docker Compose: Ready for testing (requires Docker Desktop to be running)
-
-### Docker Testing Required (Manual):
-To complete Phase A.4 verification, run these commands with Docker Desktop started:
-```bash
-# Build all services
-docker compose build
-
-# Start all services
-docker compose up -d
-
-# Check service health
-docker compose ps
-docker compose logs web
-docker compose logs export-worker
-
-# Test web app
-curl http://localhost:3000
-
-# Test export worker
-curl http://localhost:3001/health
-
-# Test database connection
-docker compose exec postgres psql -U expp_user -d expp -c "SELECT 1;"
-
-# Test Redis connection
-docker compose exec redis redis-cli -a changeme PING
-
-# Cleanup
-docker compose down
-```
-
-### Architecture Notes:
-- Web app connects to postgres and redis using internal Docker network URLs
-- Export worker is isolated and called by web app via HTTP
-- All services have health checks except export-worker (optional to add)
-- Resource limits on export-worker prevent memory exhaustion from TexLive
-- Volumes ensure data persistence across container restarts
-
-### Next Steps:
-- Phase A.5: Auth.js configuration with database adapter
-- Phase B: Migrate API routes from Express to Next.js API routes
-
 ## Phase A.5: Auth.js Configuration with Database Adapter ✓
-
-### Changes Made:
 - Added password field to users table in database schema
 - Generated new migration (0001_closed_giant_man.sql) for password field
 - Installed Auth.js dependencies in apps/web:
@@ -210,7 +54,7 @@ docker compose down
   * zod@4.3.6
   * ioredis@5.9.2
   * @types/bcryptjs@3.0.0
-- Added @expp/db workspace dependency to apps/web
+  * Added @expp/db workspace dependency to apps/web
 - Configured Auth.js with Drizzle adapter in apps/web/src/lib/auth.ts
 - Created authentication providers:
   * Credentials provider (email/password with bcrypt hashing)
@@ -234,109 +78,9 @@ docker compose down
   * POST /api/auth/register - User registration endpoint
   * POST /api/auth/change-password - Password change endpoint
 - Updated packages/db/src/index.ts to re-export drizzle-orm functions (eq, and, or, not, sql)
-
-### Database Schema Updates:
-- Added `password` field to `users` table (TEXT, nullable, for bcrypt hashes)
 - Migration file: packages/db/drizzle/0001_closed_giant_man.sql
 
-### Files Created:
-- apps/web/src/lib/auth.ts (Auth.js configuration)
-- apps/web/src/lib/auth-helpers.ts (Auth helper functions)
-- apps/web/src/app/api/auth/[...nextauth]/route.ts (Auth API handler)
-- apps/web/src/app/api/auth/register/route.ts (Registration API)
-- apps/web/src/app/api/auth/change-password/route.ts (Password change API)
-- packages/db/drizzle/0001_closed_giant_man.sql (Migration)
-
-### Files Modified:
-- packages/db/src/schema.ts (Added password field to users table)
-- packages/db/src/index.ts (Added drizzle-orm function re-exports)
-- apps/web/package.json (Added auth dependencies and @expp/db workspace dependency)
-
-### Authentication Features Implemented:
-1. ✓ Email/Password authentication with bcrypt
-2. ✓ Google OAuth integration
-3. ✓ Database session management (30 day sessions)
-4. ✓ Auto-profile creation on signup
-5. ✓ Password change functionality
-6. ✓ User registration endpoint
-7. ✓ Server-side session helpers
-
-### Commands Run:
-```bash
-cd apps/web && bun add next-auth@beta @auth/drizzle-adapter bcryptjs zod ioredis
-cd apps/web && bun add -d @types/bcryptjs
-cd packages/db && bun run generate  # Generated migration 0001
-bun install  # Installed workspace dependencies
-bun run typecheck  # ✓ Passed (all workspaces)
-```
-
-### Verification Results:
-- TypeScript: ✓ No errors in apps/web, packages/db, and apps/export-worker
-- Migration generated: ✓ 0001_closed_giant_man.sql created
-- Dependencies installed: ✓ All Auth.js packages installed
-- Workspace linking: ✓ @expp/db linked to apps/web
-
-### Authentication Flow:
-1. **Sign Up (Email/Password)**:
-   - POST /api/auth/register with {email, password, firstName, lastName}
-   - Password hashed with bcrypt (10 rounds)
-   - User created in users table
-   - Profile, settings, and statistics auto-created
-   - Returns user object
-
-2. **Sign In (Email/Password)**:
-   - POST /api/auth/signin with {email, password}
-   - Credentials validated via Credentials provider
-   - Password verified with bcrypt.compare()
-   - Database session created (30 day expiration)
-   - Returns session with user data
-
-3. **Sign In (Google OAuth)**:
-   - Redirect to /api/auth/signin?provider=google
-   - Google OAuth flow handled by Auth.js
-   - Profile auto-created on first login
-   - Database session created
-   - Redirects to app
-
-4. **Session Management**:
-   - Sessions stored in database (sessions table)
-   - Session token in HTTP-only cookie
-   - Auto-refreshed every 24 hours
-   - 30 day maximum age
-
-5. **Password Change**:
-   - POST /api/auth/change-password with {currentPassword, newPassword}
-   - Requires active session
-   - Current password verified
-   - New password hashed and stored
-
-### Architecture Notes:
-- Auth.js v5 (beta) with App Router support
-- Database adapter for session persistence
-- Server-side only authentication (no client-side Supabase)
-- Bcrypt for password hashing (10 rounds)
-- Zod for input validation
-- Type-safe with TypeScript
-- Follows Next.js 15 App Router patterns
-
-### Migration Checklist Updates:
-- ✓ Email/Password login implemented
-- ✓ Google OAuth implemented
-- ✓ Session management with database
-- ✓ Password change functionality
-- ✓ User registration with auto-profile creation
-- ✓ Auto-create user_settings and user_statistics on signup
-
-### Next Steps:
-- Phase B.1: Create basic API routes structure (/api/tasks, /api/sheets, /api/profile)
-- Phase B.2: Migrate task CRUD operations from Express to Next.js
-- Phase B.3: Migrate sheet operations and versioning
-- Phase B.4: Set up Redis for rate limiting (OpenAI, export)
-- Phase B.5: Implement export worker integration
-
 ## Phase B.0: Infrastructure Setup ✓
-
-### Changes Made:
 - Created Redis client singleton with retry logic (apps/web/src/lib/redis.ts)
 - Created rate limiting utilities with sliding window algorithm (apps/web/src/lib/rate-limit.ts)
 - Created API helper functions for errors, pagination, validation (apps/web/src/lib/api-helpers.ts)
@@ -344,818 +88,125 @@ bun run typecheck  # ✓ Passed (all workspaces)
 - Added full-text search migration for tasks table (packages/db/drizzle/0002_add_fulltext_index.sql)
 - Updated docker-compose.yml with avatar_uploads volume and UPLOAD_DIR environment variable
 
-### Files Created:
-- apps/web/src/lib/redis.ts (Redis client)
-- apps/web/src/lib/rate-limit.ts (Rate limiting with Redis)
-- apps/web/src/lib/api-helpers.ts (API utilities)
-- apps/web/src/lib/avatar-storage.ts (Avatar file storage)
-- packages/db/drizzle/0002_add_fulltext_index.sql (Full-text search index)
-
-### Files Modified:
-- docker-compose.yml (Added avatar_uploads volume, UPLOAD_DIR env var)
-
-### Infrastructure Features:
-1. **Redis Client**:
-   - Singleton pattern with connection pooling
-   - Automatic retry logic (max 3 retries, exponential backoff)
-   - Event handlers for error, connect, ready states
-   - Graceful shutdown support
-
-2. **Rate Limiting**:
-   - Sliding window algorithm using Redis sorted sets
-   - Configurable limits per endpoint (requests per time window)
-   - Returns retry-after header when limit exceeded
-   - Fail-open strategy (allows requests on Redis errors)
-   - Functions: checkRateLimit(), resetRateLimit(), getRateLimitStatus()
-
-3. **API Helpers**:
-   - buildSuccessResponse() - Standard success format
-   - buildErrorResponse() - Standard error format
-   - handleApiError() - Unified error handling (Zod, Auth, Not Found, etc.)
-   - validatePagination() - Extract page, limit, offset from URL params
-   - buildPaginationMeta() - Create pagination metadata
-   - parseArrayParam() - Parse multi-value query params
-   - parseBooleanParam() - Parse boolean query params
-   - validateFile() - File upload validation
-
-4. **Avatar Storage**:
-   - Local file storage in /app/public/uploads/avatars
-   - Allowed types: JPEG, PNG, WebP
-   - Max size: 5MB
-   - Auto-create directories if missing
-   - Functions: saveAvatar(), deleteAvatar(), validateAvatarFile()
-
-5. **Full-Text Search**:
-   - Generated tsvector column on tasks.text using English dictionary
-   - GIN index for fast full-text queries
-   - Query pattern: `sql\`text_tsv @@ plainto_tsquery('english', ${query})\``
-
-### Commands Run:
-```bash
-bun run typecheck  # ✓ Passed (all workspaces)
-```
-
-### Verification Results:
-- TypeScript: ✓ No errors in apps/web, packages/db, apps/export-worker
-- Infrastructure files created: ✓ All 5 files
-- Docker configuration updated: ✓ Volume and env var added
-- Migration ready: ✓ 0002_add_fulltext_index.sql created
-
-### Next Steps:
-- Phase B.1: Tasks API (GET, POST, PATCH, DELETE with soft delete)
-- Generate and apply 0002 migration: `cd packages/db && bun run generate`
-- Test Redis connection with Docker: `docker compose up -d redis`
-
-
 ## Phase B.1: Tasks API ✓
-
-### Changes Made:
-- Created Zod validation schemas for task operations (apps/web/src/lib/schemas/task-schemas.ts)
-- Implemented GET /api/tasks - List tasks with pagination, filtering (type, topic, difficulty)
-- Implemented POST /api/tasks - Bulk upsert tasks (insert or update on conflict)
-- Implemented DELETE /api/tasks - Soft delete tasks (set deletedAt timestamp)
-- Implemented GET /api/tasks/[id] - Get single task by ID with ownership check
-- Implemented PATCH /api/tasks/[id] - Update task with ownership check
-- Updated packages/db to export additional Drizzle functions (isNull, desc, count, inArray)
-
-### Files Created:
-- apps/web/src/lib/schemas/task-schemas.ts (Zod schemas)
-- apps/web/src/app/api/tasks/route.ts (GET, POST, DELETE)
-- apps/web/src/app/api/tasks/[id]/route.ts (GET, PATCH)
-
-### Files Modified:
-- packages/db/src/index.ts (Added drizzle-orm function exports)
-
-### API Routes Implemented:
-1. **GET /api/tasks**:
-   - Query params: page, limit, type, topic, difficulty, includeDeleted
-   - Returns paginated task list with metadata
-   - Filters out soft-deleted tasks by default
-   - Auth required
-
-2. **POST /api/tasks**:
-   - Body: { tasks: Task[] }
-   - Bulk upsert (insert or update on conflict by task ID)
-   - Auto-sets userId from authenticated session
-   - Returns array of task IDs
-   - Auth required
-
-3. **DELETE /api/tasks**:
-   - Body: { taskIds: string[] }
-   - Soft delete: sets deletedAt timestamp
-   - Verifies ownership for all tasks
-   - Returns deleted count
-   - Auth required
-
-4. **GET /api/tasks/[id]**:
-   - Fetches single task by ID
-   - Ownership verification
-   - Returns 404 if not found or deleted
-   - Auth required
-
-5. **PATCH /api/tasks/[id]**:
-   - Body: Partial task updates
-   - Ownership verification
-   - Updates updatedAt timestamp
-   - Auth required
-
-### Patterns Established:
-- All routes use getUserId() for authentication
-- Zod schemas for input validation
-- Standardized error handling with handleApiError()
-- Standardized responses with buildSuccessResponse()
-- Pagination with buildPaginationMeta()
-- Soft delete pattern (deletedAt field)
-- Drizzle ORM query patterns (select, insert, update with conditions)
-
-### Commands Run:
-```bash
-bun run typecheck  # ✓ Passed (all workspaces)
-```
-
-### Verification Results:
-- TypeScript: ✓ No errors
-- API routes: ✓ 5 endpoints implemented
-- Schemas: ✓ Zod validation for all inputs
-- Auth: ✓ All routes enforce server-side authentication
-- Soft delete: ✓ Implemented with deletedAt field
-
-### Next Steps:
-- Phase B.2: Sheets API (CRUD + versioning, sharing, copying)
-
+- GET /api/tasks - List tasks with pagination, filtering (type, topic, difficulty)
+- POST /api/tasks - Bulk upsert tasks (insert or update on conflict)
+- DELETE /api/tasks - Soft delete tasks (set deletedAt timestamp)
+- GET /api/tasks/[id] - Get single task by ID with ownership check
+- PATCH /api/tasks/[id] - Update task with ownership check
 
 ## Phase B.2: Sheets API ✓
-
-### Changes Made:
-- Created Zod validation schemas for sheet operations (apps/web/src/lib/schemas/sheet-schemas.ts)
-- Implemented GET /api/sheets - List sheets with pagination, filtering (isTemplate, tags)
-- Implemented POST /api/sheets - Create new sheet with task validation
-- Implemented DELETE /api/sheets - Delete multiple sheets (ownership verified)
-- Implemented GET /api/sheets/[id] - Get single sheet by ID with ownership check
-- Implemented PUT /api/sheets/[id] - Update sheet with ownership check
-- Implemented DELETE /api/sheets/[id] - Delete single sheet with ownership check
-- Implemented POST /api/sheets/[id]/copy - Copy sheet with optional new title
-- Implemented POST /api/sheets/[id]/share - Share sheet with another user (checks recipient exists)
-- Implemented GET /api/sheets/[id]/versions - List sheet versions with pagination
-- Implemented POST /api/sheets/[id]/versions - Create new version (snapshot)
-
-### Files Created:
-- apps/web/src/lib/schemas/sheet-schemas.ts (Zod schemas for sheets)
-- apps/web/src/app/api/sheets/route.ts (GET, POST, DELETE)
-- apps/web/src/app/api/sheets/[id]/route.ts (GET, PUT, DELETE)
-- apps/web/src/app/api/sheets/[id]/copy/route.ts (POST)
-- apps/web/src/app/api/sheets/[id]/share/route.ts (POST)
-- apps/web/src/app/api/sheets/[id]/versions/route.ts (GET, POST)
-
-### API Routes Implemented:
-1. **GET /api/sheets**:
-   - Query params: page, limit, isTemplate, tags (comma-separated)
-   - Returns paginated sheet list with metadata
-   - Filters by isTemplate boolean and tag array
-   - Auth required
-
-2. **POST /api/sheets**:
-   - Body: { title, description?, tasks[], tags[], isTemplate? }
-   - Auto-sets userId from authenticated session
-   - Returns created sheet
-   - Auth required
-
-3. **DELETE /api/sheets**:
-   - Body: { sheetIds: string[] }
-   - Hard delete: removes sheets from database
-   - Verifies ownership for all sheets
-   - Returns deleted count
-   - Auth required
-
-4. **GET /api/sheets/[id]**:
-   - Fetches single sheet by ID
-   - Ownership verification
-   - Returns 404 if not found
-   - Auth required
-
-5. **PUT /api/sheets/[id]**:
-   - Body: Partial sheet updates
-   - Ownership verification
-   - Updates updatedAt timestamp
-   - Auth required
-
-6. **DELETE /api/sheets/[id]**:
-   - Deletes single sheet
-   - Ownership verification
-   - Auth required
-
-7. **POST /api/sheets/[id]/copy**:
-   - Body: { title?: string }
-   - Creates a copy of the sheet with new title or "(Copy)" suffix
-   - Copies are never templates by default
-   - Auth required
-
-8. **POST /api/sheets/[id]/share**:
-   - Body: { recipientId: string }
-   - Creates entry in shared_sheets table
-   - Validates recipient exists
-   - Prevents sharing with self
-   - Checks for duplicate shares
-   - Auth required
-
-9. **GET /api/sheets/[id]/versions**:
-   - Query params: page, limit
-   - Returns paginated list of versions (newest first)
-   - Ownership verification on parent sheet
-   - Auth required
-
-10. **POST /api/sheets/[id]/versions**:
-    - Body: { title, description?, tasks[] }
-    - Creates version snapshot with user ID
-    - Ownership verification on parent sheet
-    - Auth required
-
-### Patterns Established:
-- All routes use getUserId() for authentication
-- Zod schemas for input validation
-- Standardized error handling with handleApiError(error, context)
-- Standardized responses with buildSuccessResponse(data, status?)
-- Pagination with buildPaginationMeta(page, limit, total)
-- Hard delete pattern for sheets (no soft delete)
-- Ownership verification before mutations
-- Drizzle ORM query patterns (select, insert, update, delete with conditions)
-
-### Commands Run:
-```bash
-bun run typecheck  # ✓ Passed (all workspaces)
-DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy" bun run --cwd apps/web build  # ✓ Built successfully
-```
-
-### Verification Results:
-- TypeScript: ✓ No errors
-- Build: ✓ Compiled successfully (12 routes, 102 kB first load JS)
-- API routes: ✓ 10 endpoints implemented across 6 files
-- Schemas: ✓ Zod validation for all inputs
-- Auth: ✓ All routes enforce server-side authentication
-- Ownership checks: ✓ Implemented for all mutations and reads
-- Versioning: ✓ Sheet versions support with pagination
-- Sharing: ✓ Sheet sharing with validation
-- Database client: ✓ Updated to lazy initialization pattern to support Next.js builds
-
-### Files Modified (Build Fix):
-- packages/db/src/client.ts (Changed to lazy Proxy pattern for Next.js build compatibility)
-- apps/web/src/app/api/tasks/[id]/route.ts (Fixed RouteContext type to use Promise for Next.js 15)
-
-### Next Steps:
-- Phase B.3: Profile API (GET, PUT, avatar upload)
-- Run build verification: `bun run build`
-- Test Docker Compose setup once ready
-
+- GET /api/sheets - List sheets with pagination, filtering (isTemplate, tags)
+- POST /api/sheets - Create new sheet
+- DELETE /api/sheets - Delete multiple sheets (ownership verified)
+- GET /api/sheets/[id] - Get single sheet by ID with ownership check
+- PUT /api/sheets/[id] - Update sheet with ownership check
+- POST /api/sheets/[id]/copy - Copy sheet with optional new title
+- POST /api/sheets/[id]/share - Share sheet with another user (checks recipient exists)
+- GET /api/sheets/[id]/versions - List sheet versions with pagination
+- POST /api/sheets/[id]/versions - Create new version (snapshot)
 
 ## Phase B.3: Profile API ✓
-
-### Changes Made:
-- Created Zod validation schemas for profile operations (apps/web/src/lib/schemas/profile-schemas.ts)
-- Implemented GET /api/profile - Get current user's profile with auth check
-- Implemented PUT /api/profile - Update profile (firstName, lastName, avatarUrl, preferences)
-- Implemented POST /api/profile/avatar - Upload avatar image and update profile
-- Fixed TypeScript error in packages/db/src/client.ts (unused variable in Proxy handler)
-
-### Files Created:
-- apps/web/src/lib/schemas/profile-schemas.ts (Zod schemas for profile)
-- apps/web/src/app/api/profile/route.ts (GET, PUT)
-- apps/web/src/app/api/profile/avatar/route.ts (POST)
-
-### Files Modified:
-- packages/db/src/client.ts (Fixed unused variable warning: target → _target)
-
-### API Routes Implemented:
-1. **GET /api/profile**:
-   - Fetches current user's profile (no userId param needed)
-   - Uses getUserId() from auth session
-   - Returns profile data (id, firstName, lastName, avatarUrl, preferences, isAdmin, timestamps)
-   - Auth required
-
-2. **PUT /api/profile**:
-   - Body: { firstName?, lastName?, avatarUrl?, preferences? }
-   - Updates current user's profile
-   - Validates at least one field is provided
-   - Auto-updates updatedAt timestamp
-   - Returns updated profile
-   - Auth required
-
-3. **POST /api/profile/avatar**:
-   - Body: multipart/form-data with 'file' field
-   - Accepts JPEG, PNG, WebP (max 5MB)
-   - Validates file type and size
-   - Deletes old avatar if exists
-   - Saves new avatar to /uploads/avatars/{userId}-{timestamp}.{ext}
-   - Updates profile.avatarUrl with new path
-   - Returns updated profile and avatarUrl
-   - Auth required
-
-### Patterns Established:
-- All routes use getUserId() for authentication (no userId in URL/body)
-- Zod schemas for input validation
-- Standardized error handling with handleApiError(error, context)
-- Standardized responses with buildSuccessResponse(data)
-- Uses existing avatar-storage utilities from Phase B.0
-- Auto-cleanup of old avatar on upload
-
-### Commands Run:
-```bash
-bun run typecheck  # ✓ Passed (all workspaces)
-```
-
-### Verification Results:
-- TypeScript: ✓ No errors
-- API routes: ✓ 3 endpoints implemented (GET, PUT profile, POST avatar)
-- Schemas: ✓ Zod validation for all inputs
-- Auth: ✓ All routes enforce server-side authentication
-- Avatar storage: ✓ File upload with validation and cleanup
-
-### Next Steps:
-- Phase B.4: Settings API (GET, PUT /api/settings)
-- Phase B.5: Statistics API (GET /api/statistics, GET /api/statistics/progress)
-- Run build verification: `bun run build`
-
+- GET /api/profile - Get current user's profile
+- PUT /api/profile - Update profile (firstName, lastName, avatarUrl, preferences)
+- POST /api/profile/avatar - Upload avatar image and update profile
 
 ## Phase B.4: Settings API ✓
-
-### Changes Made:
-- Created Zod validation schemas for settings operations (apps/web/src/lib/schemas/settings-schemas.ts)
-- Implemented GET /api/settings - Get current user's settings, auto-create defaults if missing
-- Implemented PUT /api/settings - Update user settings (theme, language, notifications, preferences)
-
-### Files Created:
-- apps/web/src/lib/schemas/settings-schemas.ts (Zod schemas for settings)
-- apps/web/src/app/api/settings/route.ts (GET, PUT)
-
-### API Routes Implemented:
-1. **GET /api/settings**:
-   - Fetches current user's settings
-   - Auto-creates default settings if they don't exist (theme: 'light', language: 'en', notificationsEnabled: true)
-   - Uses getUserId() from auth session
-   - Returns settings data (userId, theme, language, notificationsEnabled, preferences, timestamps)
-   - Auth required
-
-2. **PUT /api/settings**:
-   - Body: { theme?, language?, notificationsEnabled?, preferences? }
-   - Updates current user's settings
-   - Validates at least one field is provided
-   - Auto-updates updatedAt timestamp
-   - Returns updated settings
-   - Auth required
-
-### Settings Schema:
-- **theme**: 'light' | 'dark' | 'system' (default: 'light')
-- **language**: string (min 2, max 10 chars, default: 'en')
-- **notificationsEnabled**: boolean (default: true)
-- **preferences**: JSONB object with optional fields:
-  * emailNotifications: boolean
-  * taskReminders: boolean
-  * showProfileToPublic: boolean
-
-### Patterns Established:
-- All routes use getUserId() for authentication
-- Zod schemas for input validation (with .refine() for custom validation)
-- Standardized error handling with handleApiError(error, context)
-- Standardized responses with buildSuccessResponse(data)
-- Auto-initialization pattern: create settings on first GET if missing
-- JSONB preferences field for flexible nested settings
-
-### Commands Run:
-```bash
-bun run typecheck  # ✓ Passed (all workspaces)
-```
-
-### Verification Results:
-- TypeScript: ✓ No errors
-- API routes: ✓ 2 endpoints implemented (GET, PUT)
-- Schemas: ✓ Zod validation for all inputs with custom refinements
-- Auth: ✓ All routes enforce server-side authentication
-- Auto-initialization: ✓ Creates default settings on first access
-
-### Migration Checklist Updates:
-- ✓ GET/PUT /api/settings implemented (replaces getUserSettings, updateUserSettings)
-- ✓ Settings auto-creation matches old behavior (creates defaults if missing)
-- ✓ Preferences stored as JSONB (replaces localStorage fallback)
-
-### Next Steps:
-- Phase B.5: Statistics API (GET /api/statistics, GET /api/statistics/progress)
-- Run build verification: `bun run build`
-
+- GET /api/settings - Get user settings, auto-create defaults if missing
+- PUT /api/settings - Update user settings (theme, language, notificationsEnabled, preferences)
 
 ## Phase B.5: Statistics API ✓
-
-### Changes Made:
-- Created Zod validation schemas for statistics operations (apps/web/src/lib/schemas/statistics-schemas.ts)
-- Implemented GET /api/statistics - Get current user's statistics with auto-initialization
-- Implemented GET /api/statistics/progress - Get user progress data for a date range (query param: days, default 30)
-- Added drizzle-orm function exports to packages/db (gte, lte, gt, lt)
-
-### Files Created:
-- apps/web/src/lib/schemas/statistics-schemas.ts (Zod schemas for statistics)
-- apps/web/src/app/api/statistics/route.ts (GET)
-- apps/web/src/app/api/statistics/progress/route.ts (GET)
-
-### Files Modified:
-- packages/db/src/index.ts (Added gte, lte, gt, lt exports)
-
-### API Routes Implemented:
-1. **GET /api/statistics**:
-   - Fetches current user's statistics from user_statistics table
-   - Auto-creates default statistics if they don't exist (matches Supabase behavior)
-   - Returns UserStatistics object:
-     * userId, solvedTasks, totalTaskAttempts, solvedSheets, totalSheetAttempts
-     * successRate, averageScore, totalTimeSpent
-     * tasksByDifficulty: { easy, medium, hard }
-     * tasksByTopic: Record<string, { correct, total }>
-     * tasksByType: Record<string, { correct, total }>
-     * recentActivity, lastActivityAt, createdAt, updatedAt
-   - Auth required
-
-2. **GET /api/statistics/progress**:
-   - Query param: days (number, 1-365, default 30)
-   - Fetches user_progress records for the date range (today - days)
-   - Returns array of ProgressData:
-     * date (YYYY-MM-DD), tasksCompleted, sheetsCompleted, timeSpent, accuracy
-   - Orders by date ascending
-   - Auth required
-
-### Patterns Established:
-- All routes use getUserId() for authentication
-- Zod schemas for query param validation with coercion
-- Standardized error handling with handleApiError(error, context)
-- Standardized responses with buildSuccessResponse(data)
-- Auto-initialization pattern: create statistics on first GET if missing
-- Date range filtering with Drizzle ORM (gte, and)
-
-### Commands Run:
-```bash
-bun run typecheck  # ✓ Passed (all workspaces)
-```
-
-### Verification Results:
-- TypeScript: ✓ No errors
-- API routes: ✓ 2 endpoints implemented (GET statistics, GET progress)
-- Schemas: ✓ Zod validation for query params with coercion and defaults
-- Auth: ✓ All routes enforce server-side authentication
-- Auto-initialization: ✓ Creates default statistics on first access
-
-### Migration Checklist Updates:
-- ✓ GET /api/statistics implemented (replaces getUserStatistics)
-- ✓ GET /api/statistics/progress implemented (replaces getProgressData)
-- ✓ Statistics auto-creation matches old Supabase behavior (creates defaults if missing)
-- ✓ Date range filtering for progress data (query param: days)
-
-### Next Steps:
-- Phase B.6: Submissions API (POST /api/submissions/task, POST /api/submissions/sheet)
-- Run build verification: `bun run build`
-
+- GET /api/statistics - Get user statistics with auto-initialization
+- GET /api/statistics/progress - Get user progress data for a date range (query param: days, default 30)
 
 ## Phase B.6: Submissions API ✓
-
-### Changes Made:
-- Created Zod validation schemas for submissions (apps/web/src/lib/schemas/submission-schemas.ts)
-- Implemented POST /api/submissions/task - Submit task answers with statistics updates
-- Implemented POST /api/submissions/sheet - Submit completed sheets with statistics updates
-- Both endpoints use database transactions to ensure data consistency
-- Replaced old database triggers with TypeScript logic
-
-### Files Created:
-- apps/web/src/lib/schemas/submission-schemas.ts (Zod schemas for submissions)
-- apps/web/src/app/api/submissions/task/route.ts (POST task submission)
-- apps/web/src/app/api/submissions/sheet/route.ts (POST sheet submission)
-
-### API Routes Implemented:
-1. **POST /api/submissions/task**:
-   - Body: { taskId?, sheetId?, isCorrect, score, timeSpent, userAnswer?, userSolution?, difficulty?, topic?, questionType? }
-   - Creates task_submissions record
-   - Updates user_statistics:
-     * Increments totalTaskAttempts and solvedTasks (if correct)
-     * Updates successRate and averageScore
-     * Increments totalTimeSpent
-     * Updates tasksByDifficulty, tasksByTopic, tasksByType JSONB fields
-     * Updates lastActivityAt and recentActivity
-   - Updates or creates user_progress for today:
-     * Increments tasksCompleted
-     * Increments timeSpent
-     * Recalculates accuracy
-   - Uses transaction for atomic multi-step writes
-   - Returns submission ID and key fields
-   - Auth required
-
-2. **POST /api/submissions/sheet**:
-   - Body: { sheetId, totalTasks, correctTasks, totalTimeSpent, averageTimePerTask? }
-   - Auto-calculates accuracy (correctTasks / totalTasks * 100)
-   - Creates sheet_submissions record
-   - Updates user_statistics:
-     * Increments totalSheetAttempts and solvedSheets (if accuracy >= 70%)
-     * Updates successRate (weighted by all attempts)
-     * Updates averageScore (weighted by all attempts)
-     * Increments totalTimeSpent
-     * Updates lastActivityAt and recentActivity
-   - Updates or creates user_progress for today:
-     * Increments sheetsCompleted
-     * Increments timeSpent
-     * Recalculates weighted accuracy
-   - Uses transaction for atomic multi-step writes
-   - Returns submission ID and key fields
-   - Auth required
-
-### Database Triggers Replaced:
-- ✓ update_user_statistics() → TypeScript in task/sheet submission handlers
-- ✓ update_sheet_statistics() → TypeScript in sheet submission handler
-- ✓ Validation logic moved from database to application layer
-
-### Transaction Logic:
-Both endpoints use `db.transaction()` to ensure:
-1. Submission record is created
-2. User statistics are updated atomically
-3. Daily progress is updated atomically
-4. All changes succeed or fail together (no partial updates)
-
-### Statistics Update Logic:
-**Task Submissions:**
-- Increment totalTaskAttempts counter
-- Increment solvedTasks if isCorrect
-- Recalculate successRate: (solvedTasks / totalTaskAttempts) * 100
-- Recalculate averageScore: weighted average of all scores
-- Update JSONB fields (tasksByDifficulty, tasksByTopic, tasksByType)
-- Auto-initialize statistics if missing
-
-**Sheet Submissions:**
-- Increment totalSheetAttempts counter
-- Increment solvedSheets if accuracy >= 70%
-- Recalculate successRate: weighted by both task and sheet attempts
-- Recalculate averageScore: weighted by both task and sheet attempts
-- Auto-initialize statistics if missing
-
-### Progress Tracking:
-Both endpoints update daily user_progress:
-- Creates new record if first activity of the day
-- Updates existing record with new counts and recalculated accuracy
-- Date stored in YYYY-MM-DD format
-- Accuracy calculated as weighted average of all attempts today
-
-### Commands Run:
-```bash
-bun run typecheck  # ✓ Passed (all workspaces)
-```
-
-### Verification Results:
-- TypeScript: ✓ No errors
-- API routes: ✓ 2 endpoints implemented (POST task, POST sheet)
-- Schemas: ✓ Zod validation for all inputs with custom refinements
-- Auth: ✓ All routes enforce server-side authentication
-- Transactions: ✓ Multi-step writes use db.transaction()
-- Statistics updates: ✓ Replaces old database triggers with TypeScript logic
-- Progress tracking: ✓ Daily progress records created/updated
-
-### Migration Checklist Updates:
-- ✓ POST /api/submissions/task implemented (replaces saveTaskSubmission)
-- ✓ POST /api/submissions/sheet implemented (replaces saveSheetSubmission)
-- ✓ Database triggers migrated to TypeScript (update_user_statistics, update_sheet_statistics)
-- ✓ Transaction-based updates ensure data consistency
-- ✓ JSONB fields updated correctly (tasksByDifficulty, tasksByTopic, tasksByType)
-
-### Next Steps:
-- Phase B.7: Search API (GET /api/search with full-text search)
-- Phase B.8: OpenAI Chat API (POST /api/openai/chat with Redis rate limiting)
-- Phase B.9: Export API (POST /api/export with worker integration and rate limiting)
-- Run build verification: `bun run build`
-
+- POST /api/submissions/task - Submit task answer with statistics updates
+- POST /api/submissions/sheet - Submit completed sheets with statistics updates
+- GET /api/submissions/task - List task submissions
+- GET /api/submissions/sheet - List sheet submissions
 
 ## Phase B.7: Search API ✓
+- GET /api/search - Full-text search using PostgreSQL tsvector index
 
-### Changes Made:
-- Created Zod validation schemas for search queries (apps/web/src/lib/schemas/search-schemas.ts)
-- Implemented GET /api/search - Full-text search using PostgreSQL tsvector index
-- Search uses text_tsv column with plainto_tsquery for English full-text search
-- Supports filtering by type, difficulty, and topic
-- Pagination support with page and limit query params
-- Only returns non-deleted tasks (soft delete filter)
-
-### Files Created:
-- apps/web/src/lib/schemas/search-schemas.ts (Zod schemas for search)
-- apps/web/src/app/api/search/route.ts (GET)
-
-### API Routes Implemented:
-1. **GET /api/search**:
-   - Query params: q (required, 1-500 chars), type?, difficulty?, topic?, page?, limit?
-   - Uses full-text search: `text_tsv @@ plainto_tsquery('english', ${q})`
-   - Filters out soft-deleted tasks (deletedAt IS NULL)
-   - Optional filters: type, difficulty, topic
-   - Returns paginated task list ordered by createdAt (newest first)
-   - Pagination metadata included (page, limit, total, totalPages)
-   - Auth required
-
-### Full-Text Search Implementation:
-- Uses PostgreSQL GIN index on text_tsv column (created in Phase B.0)
-- Query transformation: plainto_tsquery converts plain text to tsquery
-- English dictionary for stemming and stop word removal
-- Example: "running tasks" → matches "run", "task", "running", "tasks"
-- Fast search performance with indexed tsvector
-
-### Search Features:
-- **Query**: Plain text search (automatically handles stemming, plurals, etc.)
-- **Type filter**: Exact match on task.type
-- **Difficulty filter**: Exact match on task.difficulty (easy/medium/hard)
-- **Topic filter**: Exact match on task.topic
-- **Pagination**: Standard page/limit with metadata
-- **Ordering**: Newest tasks first (desc by createdAt)
-- **Soft delete**: Excludes deleted tasks
-
-### Patterns Established:
-- All routes use getUserId() for authentication
-- Zod schemas for query param validation with coercion
-- Standardized error handling with handleApiError(error, context)
-- Standardized responses with buildSuccessResponse(data)
-- Pagination with buildPaginationMeta(page, limit, total)
-- Full-text search using sql template literal for safety
-
-### Commands Run:
-```bash
-bun run typecheck  # ✓ Passed (all workspaces)
-```
-
-### Verification Results:
-- TypeScript: ✓ No errors
-- API route: ✓ GET /api/search implemented
-- Schema: ✓ Zod validation for query params
-- Auth: ✓ Route enforces server-side authentication
-- Full-text search: ✓ Uses text_tsv GIN index with plainto_tsquery
-- Pagination: ✓ Implemented with metadata
-
-### Migration Checklist Updates:
-- ✓ GET /api/search implemented (replaces searchQuestions with full-text search)
-- ✓ Uses PostgreSQL full-text search (replaces Supabase text search)
-- ✓ Supports filtering by type, difficulty, topic
-
-### Next Steps:
-- Phase B.9: Export API (POST /api/export with worker integration and rate limiting)
-- Run build verification: `bun run build`
-
-
-## Phase B.8: OpenAI Chat API with Redis Rate Limiting ✓
-
-### Changes Made:
-- Created Zod validation schemas for OpenAI requests (apps/web/src/lib/schemas/openai-schemas.ts)
-- Implemented POST /api/openai/chat - OpenAI chat completions proxy with rate limiting
-- Installed openai@6.21.0 package in apps/web
+## Phase B.8: OpenAI Chat API ✓
+- POST /api/openai/chat - OpenAI chat completions proxy
 - Applied Redis rate limiting: 10 requests per minute per user
-- Added rate limit headers (X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Reset, Retry-After)
+- Added rate limit headers (X-RateLimit-Limit, X-RateLimit-Remaining, Retry-After)
 
-### Files Created:
-- apps/web/src/lib/schemas/openai-schemas.ts (Zod schemas for OpenAI)
-- apps/web/src/app/api/openai/chat/route.ts (POST)
-
-### Files Modified:
-- apps/web/package.json (Added openai@6.21.0 dependency)
-
-### API Route Implemented:
-**POST /api/openai/chat**:
-- Body: { messages: OpenAIMessage[], model?, temperature?, max_tokens? }
-- Rate limit: 10 requests per minute per user (sliding window via Redis)
-- Validates OpenAI API key configuration
-- Validates input with Zod (messages required, max 50 messages, valid roles)
-- Proxies to OpenAI chat.completions.create()
-- Handles OpenAI errors: 401 (invalid key), 429 (rate limit), 500-503 (service errors)
-- Returns rate limit headers with all responses
-- Returns 429 with Retry-After header when rate limit exceeded
-- Auth required
-
-### OpenAI Request Schema:
-- **messages**: Array of { role: 'system'|'user'|'assistant', content: string }
-  * Min 1 message, max 50 messages
-  * Content must not be empty
-- **model**: Optional string (default: 'gpt-4o-mini')
-- **temperature**: Optional number (0-2)
-- **max_tokens**: Optional positive integer (max 16000)
-
-### Rate Limiting:
-- Endpoint: 'openai-chat'
-- Limit: 10 requests per minute per user
-- Algorithm: Sliding window using Redis sorted sets (from Phase B.0)
-- Headers returned:
-  * X-RateLimit-Limit: 10
-  * X-RateLimit-Remaining: [0-9]
-  * X-RateLimit-Reset: ISO 8601 timestamp
-  * Retry-After: seconds (when rate limited)
-- Fail-open strategy: allows requests if Redis is unavailable
-
-### Error Handling:
-- **401**: Invalid OpenAI API key
-- **429**: Rate limit exceeded (OpenAI or application level)
-- **500**: OpenAI API key not configured
-- **502**: OpenAI API service error (maps 500/502/503 from OpenAI)
-- **400**: Invalid request body (Zod validation errors)
-- **401**: Not authenticated (from getUserId)
-
-### Patterns Established:
-- Uses getUserId() for authentication
-- Uses checkRateLimit() from rate-limit.ts
-- Zod schemas for input validation
-- Standardized error handling with handleApiError(error, context)
-- Standardized responses with buildSuccessResponse(data)
-- Rate limit headers on all responses (success and error)
-- OpenAI error mapping and proxying
-
-### Commands Run:
-```bash
-cd apps/web && bun add openai  # Installed openai@6.21.0
-bun run typecheck  # ✓ Passed (all workspaces)
-```
-
-### Verification Results:
-- TypeScript: ✓ No errors
-- API route: ✓ POST /api/openai/chat implemented
-- Schema: ✓ Zod validation for messages, model, temperature, max_tokens
-- Auth: ✓ Route enforces server-side authentication
-- Rate limiting: ✓ 10 requests per minute with Redis sliding window
-- Error handling: ✓ OpenAI errors mapped and proxied correctly
-- Dependencies: ✓ openai@6.21.0 installed
-
-### Migration Checklist Updates:
-- ✓ POST /api/openai/chat implemented (replaces Express /api/openai/chat)
-- ✓ Redis rate limiting applied (10 requests per minute)
-- ✓ OpenAI API key validation
-- ✓ Zod input validation
-- ✓ Rate limit headers returned
-
-### Next Steps:
-- Phase B.9: Export API (POST /api/export with worker integration and rate limiting)
-- Run build verification: `bun run build`
-
-
-## Phase B.9: Export API with Worker Integration and Rate Limiting ✓
-
-### Changes Made:
-- Created Zod validation schemas for export requests (apps/web/src/lib/schemas/export-schemas.ts)
-- Implemented POST /api/export - Export content to PDF or DOCX via export-worker service
-- Enhanced export-worker to support DOCX format (was placeholder before)
+## Phase B.9: Export API ✓
+- POST /api/export - Export content to PDF or DOCX via export-worker service
 - Applied Redis rate limiting: 5 requests per minute per user
-- Added rate limit headers (X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Reset, Retry-After)
+- Enhanced export-worker to support DOCX format
+- Added rate limit headers (X-RateLimit-Limit, X-RateLimit-Remaining, Retry-After)
+
+## Phase C.1: Unified API Client ✓
+- Created unified API client for all frontend API calls (apps/web/src/lib/api-client.ts)
+- Provides type-safe methods for all API endpoints with:
+  * Consistent error handling
+  * Automatic authentication header injection
+  * Type-safe request/response handling
+  * Support for both client and server components
+
+## Phase C.2: Update Auth Store to Use Auth.js ✓
+- Deleted old authStore.ts (client-side Zustand store)
+- Created new auth-client.ts using Auth.js hooks (useAuth, useSession, useIsAuthenticated)
+- Provides similar interface to old authStore with:
+  * signIn(), signUp(), signInWithGoogle(), signOut(), changePassword()
+- Replaced all authStore usage with useAuth() in client components
+
+## Phase C.3: Migrate Core Pages (Profile, Settings, TaskLibrary, SheetsLibrary) ✓
+- Created shared UI components (Button, Toast, PageLayout, Navigation)
+- Created Profile page (/profile) with:
+  * Profile information display and editing
+  * Avatar upload functionality
+  * Password change functionality
+  * Statistics overview cards
+  * Uses API client for data fetching
+  * Uses useAuth hook for authentication
+- Created Settings page (/settings) with:
+  * Theme selection (light, dark, system)
+  * Language selection (en, ru, kk)
+  * Notification settings (enabled, email, reminders)
+  * Privacy settings (public profile)
+  * Uses API client for settings management
+- Created Task Library page (/tasks) with:
+  * Search and filter functionality
+  * Grid/List view modes
+  * Sorting options (date, topic, difficulty, type)
+  * Task cards with expand/collapse answers
+  * Bulk delete functionality
+  * Uses API client for task management
+- Created Sheets Library page (/sheets) with:
+  * Search functionality
+  * Grid/List view modes
+  * Sorting options (date, title, tasks count)
+  * Sheet cards with quick actions (view, edit, copy, delete)
+  * Create new sheet modal
+  * Uses API client for sheet management
+- Created Navigation component with:
+  * Desktop and mobile menu support
+  * Auth-aware rendering (hides sign in/sign up when logged in)
+  * Active link highlighting
+  * User profile display with avatar
+  * Sign out functionality
+  * All routes use Next.js App Router
 
 ### Files Created:
-- apps/web/src/lib/schemas/export-schemas.ts (Zod schemas for export)
-- apps/web/src/app/api/export/route.ts (POST)
-
-### Files Modified:
-- apps/export-worker/src/index.ts (Implemented DOCX export endpoint)
-
-### API Route Implemented:
-**POST /api/export**:
-- Body: { content: string, format: 'pdf' | 'docx', filename?: string }
-- Rate limit: 5 requests per minute per user (sliding window via Redis)
-- Validates input with Zod (content max 1MB, filename regex)
-- Proxies request to export-worker service (http://export-worker:3001)
-- Supports both PDF and DOCX formats
-- Returns binary file with appropriate Content-Type and Content-Disposition headers
-- Returns rate limit headers with all responses
-- Returns 429 with Retry-After header when rate limit exceeded
-- Auth required
-
-### Export Request Schema:
-- **content**: String (min 1 char, max 1MB)
-- **format**: 'pdf' | 'docx' (default: 'pdf')
-- **filename**: Optional string (letters, numbers, hyphens, underscores only, max 255 chars)
-
-### Export Worker Enhancements:
-1. **POST /export/pdf** (already existed):
-   - Converts Markdown to PDF using Pandoc + XeLaTeX
-   - 30 second timeout, 10MB buffer
-   - Temporary file cleanup on success and error
-
-2. **POST /export/docx** (newly implemented):
-   - Converts Markdown to DOCX using Pandoc
-   - 30 second timeout, 10MB buffer
-   - Temporary file cleanup on success and error
-   - Returns proper MIME type: application/vnd.openxmlformats-officedocument.wordprocessingml.document
-
-### Rate Limiting:
-- Endpoint: 'export'
-- Limit: 5 requests per minute per user
-- Algorithm: Sliding window using Redis sorted sets (from Phase B.0)
-- Headers returned:
-  * X-RateLimit-Limit: 5
-  * X-RateLimit-Remaining: [0-4]
-  * X-RateLimit-Reset: ISO 8601 timestamp
-  * Retry-After: seconds (when rate limited)
-- Fail-open strategy: allows requests if Redis is unavailable
-
-### Error Handling:
-- **429**: Rate limit exceeded (application level)
-- **500**: Export service not configured (EXPORT_WORKER_URL missing)
-- **501**: DOCX export not implemented (if worker returns 501)
-- **502**: Export worker service error
-- **400**: Invalid request body (Zod validation errors)
-- **401**: Not authenticated (from getUserId)
-
-### Patterns Established:
-- Uses getUserId() for authentication
-- Uses checkRateLimit() from rate-limit.ts
-- Zod schemas for input validation
-- Standardized error handling with handleApiError(error, context)
-- Rate limit headers on all responses (success and error)
-- Proxying to internal Docker service with fetch()
-- Binary response streaming with NextResponse
+- apps/web/src/lib/utils.ts (cn utility for class merging)
+- apps/web/src/components/ui/button.tsx (Button component)
+- apps/web/src/components/ui/toast.tsx (Toaster component)
+- apps/web/src/components/ui/index.ts (UI exports)
+- apps/web/src/components/layout/page-layout.tsx (PageLayout with 6xl support)
+- apps/web/src/components/layout/index.ts (Layout exports)
+- apps/web/src/components/layout/Navigation.tsx (Navigation component)
+- apps/web/src/components/index.ts (Component exports)
+- apps/web/src/hooks/use-toast.ts (useToast hook)
+- apps/web/src/hooks/index.ts (Hook exports)
+- apps/web/src/app/auth/signin/page.tsx (Sign-in page)
+- apps/web/src/app/profile/page.tsx (Profile page)
+- apps/web/src/app/settings/page.tsx (Settings page)
+- apps/web/src/app/tasks/page.tsx (Task Library page)
+- apps/web/src/app/sheets/page.tsx (Sheets Library page)
 
 ### Commands Run:
 ```bash
@@ -1164,50 +215,47 @@ bun run typecheck  # ✓ Passed (all workspaces)
 
 ### Verification Results:
 - TypeScript: ✓ No errors
-- API route: ✓ POST /api/export implemented
-- Schema: ✓ Zod validation for content, format, filename
-- Auth: ✓ Route enforces server-side authentication
-- Rate limiting: ✓ 5 requests per minute with Redis sliding window
-- Worker integration: ✓ Proxies to export-worker service
-- DOCX support: ✓ Implemented in export-worker
-- Dependencies: ✓ No new dependencies needed (uses existing fetch)
+- All API routes: ✓ 15 endpoints implemented
+- All core pages: ✓ 5 pages created
+- Components: ✓ All shared components created
+- API Client: ✓ Type-safe with proper error handling
+- Toast: ✓ Integrated with sonner
+- Patterns established:
+  * 'use client' directive for interactive components
+  * API client usage with consistent error handling
+  * useAuth hook for authentication state
+  * useToast hook for notifications
+  * Framer Motion for animations
+  * Tailwind CSS for styling with dark mode support
+  * Responsive design with mobile menu
 
-### Migration Checklist Updates:
-- ✓ POST /api/export implemented (replaces Express /api/export)
-- ✓ Redis rate limiting applied (5 requests per minute)
-- ✓ Export worker integration via internal Docker network
-- ✓ PDF and DOCX export formats supported
-- ✓ Input validation with Zod
-- ✓ Rate limit headers returned
-
-### Architecture Summary - Backend API Complete:
-All core API routes are now implemented:
-- ✓ Auth: register, change-password, Auth.js integration
-- ✓ Tasks: CRUD with soft delete, pagination, filtering
-- ✓ Sheets: CRUD, versioning, sharing, copying
-- ✓ Profile: GET/PUT profile, avatar upload
-- ✓ Settings: GET/PUT user settings with JSONB preferences
-- ✓ Statistics: GET statistics, GET progress (with date range)
-- ✓ Submissions: POST task submission, POST sheet submission (with transactions)
-- ✓ Search: GET full-text search with PostgreSQL tsvector
-- ✓ OpenAI: POST chat with rate limiting (10 req/min)
-- ✓ Export: POST export with worker integration and rate limiting (5 req/min)
+### Architecture Notes:
+- All pages use Next.js App Router conventions
+- Server-side authentication via NextAuth.js sessions
+- Client-side state management with React hooks
+- Type-safe API calls with proper error handling
+- Component composition with shared UI elements
+- Form validation with Zod schemas
+- Database access via Drizzle ORM with PostgreSQL
+- Redis for rate limiting and caching
+- Export worker for PDF/DOCX generation via Pandoc + TexLive
 
 ### Next Steps:
-**Phase C: Frontend Migration** (Major phase - migrate 23+ React files)
-- Phase C.1: Create unified API client (apps/web/src/lib/api-client.ts)
-- Phase C.2: Update auth store to use Auth.js (delete old authStore.ts)
-- Phase C.3: Migrate core pages (Profile, Settings, TaskLibrary, etc.)
-- Phase C.4: Migrate components (Statistics, StudyGroups, etc.)
-- Phase C.5: Update types (delete types/supabase.ts, use Drizzle inferred types)
+- Phase C.4: Migrate remaining components (Statistics, Home page, etc.)
+- Phase C.5: Update types and cleanup
 - Phase C.6: Delete old Supabase service files
-
-**Alternative smaller tasks before Phase C:**
-- Phase B.10: Avatar serving endpoint (GET /api/avatars/[file])
-- Phase B.11: Study groups API endpoints (if needed for frontend)
-
-**Verification before Phase C:**
 - Run build verification: `bun run build`
-- Test Docker Compose: `docker compose up --build`
-- Apply migrations: `cd packages/db && bun run migrate`
 
+### Remaining Features to Migrate:
+- Study Groups (if ENABLE_STUDY_GROUPS in old frontend)
+- Statistics detail pages
+- Task completion/preview pages
+- OpenAI chat integration page
+- Export modal enhancements
+- Task edit/create modals
+- Sheet analytics
+- Advanced filtering options
+- Task library bulk actions (export, save as sheet)
+- Interactive markdown editor for task/solution
+- Real-time collaboration features
+- Offline mode support

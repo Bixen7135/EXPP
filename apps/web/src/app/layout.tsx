@@ -1,5 +1,7 @@
 import type { Metadata } from 'next';
 import './globals.css';
+import { SessionProvider } from '@/components/auth/SessionProvider';
+import { Toaster } from '@/components/ui/toast';
 
 export const metadata: Metadata = {
   title: 'EXPP - Exam Practice Platform',
@@ -12,8 +14,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body>{children}</body>
+    <html lang="en" suppressHydrationWarning>
+      <body>
+        <SessionProvider>
+          {children}
+          <Toaster />
+        </SessionProvider>
+      </body>
     </html>
   );
 }

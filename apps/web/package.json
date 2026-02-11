@@ -13,12 +13,17 @@
     "@auth/drizzle-adapter": "^1.11.1",
     "@expp/db": "workspace:*",
     "bcryptjs": "^3.0.3",
+    "clsx": "^2.1.1",
+    "framer-motion": "^12.34.0",
     "ioredis": "^5.9.2",
+    "lucide-react": "^0.563.0",
     "next": "^15.1.3",
     "next-auth": "^5.0.0-beta.30",
     "openai": "^6.21.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "sonner": "^2.0.7",
+    "tailwind-merge": "^3.4.0",
     "zod": "^4.3.6"
   },
   "devDependencies": {
