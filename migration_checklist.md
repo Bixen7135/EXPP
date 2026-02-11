@@ -32,25 +32,25 @@
 - [x] POST /api/sheets/[id]/copy (replaces copySheet)
 - [x] POST /api/sheets/[id]/share (replaces shareSheet)
 - [x] GET/POST /api/sheets/[id]/versions (replaces sheet versioning)
-- [ ] GET/PUT /api/profile (replaces getProfile, updateProfile)
-- [ ] POST /api/upload (replaces Supabase Storage uploadAvatar)
-- [ ] GET/PUT /api/settings (replaces getUserSettings, updateUserSettings)
-- [ ] GET /api/statistics (replaces getUserStatistics)
-- [ ] GET /api/statistics/progress (replaces getProgressData)
-- [ ] POST /api/submissions/task (replaces saveTaskSubmission)
-- [ ] POST /api/submissions/sheet (replaces saveSheetSubmission)
-- [ ] GET /api/search (replaces searchQuestions with full-text search)
+- [x] GET/PUT /api/profile (replaces getProfile, updateProfile)
+- [x] POST /api/profile/avatar (replaces Supabase Storage uploadAvatar)
+- [x] GET/PUT /api/settings (replaces getUserSettings, updateUserSettings)
+- [x] GET /api/statistics (replaces getUserStatistics)
+- [x] GET /api/statistics/progress (replaces getProgressData)
+- [x] POST /api/submissions/task (replaces saveTaskSubmission)
+- [x] POST /api/submissions/sheet (replaces saveSheetSubmission)
+- [x] GET /api/search (replaces searchQuestions with full-text search)
 - [ ] Study groups endpoints (createStudyGroup, joinStudyGroup, etc.)
-- [ ] POST /api/openai/chat (proxy with Redis rate limiting)
-- [ ] POST /api/export (proxy to export worker with rate limiting)
+- [x] POST /api/openai/chat (proxy with Redis rate limiting)
+- [x] POST /api/export (proxy to export worker with rate limiting)
 
 ## Storage
 - [ ] Avatar uploads (Supabase Storage → local disk volume)
 - [ ] Avatar serving (public URLs → /api/avatars/[file])
 
 ## Database Triggers → Application Code
-- [ ] update_user_statistics() trigger → TypeScript in task submission handler
-- [ ] update_sheet_statistics() trigger → TypeScript in sheet submission handler
+- [x] update_user_statistics() trigger → TypeScript in task submission handler
+- [x] update_sheet_statistics() trigger → TypeScript in sheet submission handler
 - [ ] validate_task_ids() trigger → TypeScript validation in sheet create/update
 
 ## Frontend Files (23 with Supabase imports)

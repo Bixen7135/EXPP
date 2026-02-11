@@ -22,7 +22,7 @@ function getDb() {
 
 // Export a Proxy that lazily initializes the database connection
 export const db = new Proxy({} as PostgresJsDatabase<typeof schema>, {
-  get(target, prop) {
+  get(_target, prop) {
     const database = getDb();
     return database[prop as keyof typeof database];
   },

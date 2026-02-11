@@ -81,9 +81,68 @@ app.post('/export/pdf', async (c) => {
   }
 });
 
-// Export to DOCX endpoint (placeholder for future implementation)
+// Export to DOCX endpoint
 app.post('/export/docx', async (c) => {
-  return c.json({ error: 'DOCX export not yet implemented' }, 501);
+  try {
+    const body = await c.req.json();
+    const { content, format = 'markdown' } = body;
+
+    if (!content) {
+      return c.json({ error: 'Content is required' }, 400);
+    }
+
+    // Generate temporary file names
+    const inputFile = join(tmpdir(), `${randomUUID()}.md`);
+    const outputFile = join(tmpdir(), `${randomUUID()}.docx`);
+
+    try {
+      // Write content to temporary file
+      await writeFile(inputFile, content, 'utf-8');
+
+      // Convert to DOCX using pandoc
+      const pandocCmd = [
+        'pandoc',
+        inputFile,
+        '-o', outputFile,
+        '--standalone',
+      ].join(' ');
+
+      await execAsync(pandocCmd, {
+        timeout: 30000, // 30 second timeout
+        maxBuffer: 10 * 1024 * 1024, // 10MB buffer
+      });
+
+      // Read the generated DOCX
+      const docxBuffer = await Bun.file(outputFile).arrayBuffer();
+
+      // Clean up temporary files
+      await Promise.all([
+        unlink(inputFile).catch(() => {}),
+        unlink(outputFile).catch(() => {}),
+      ]);
+
+      // Return DOCX as response
+      return new Response(docxBuffer, {
+        headers: {
+          'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+          'Content-Disposition': 'attachment; filename="export.docx"',
+        },
+      });
+    } catch (error) {
+      // Clean up on error
+      await Promise.all([
+        unlink(inputFile).catch(() => {}),
+        unlink(outputFile).catch(() => {}),
+      ]);
+      throw error;
+    }
+  } catch (error) {
+    console.error('Export error:', error);
+    return c.json({
+      error: 'Failed to generate DOCX',
+      message: error instanceof Error ? error.message : 'Unknown error',
+    }, 500);
+  }
 });
 
 const port = parseInt(process.env.PORT || '3001', 10);
