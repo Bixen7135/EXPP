@@ -31,6 +31,12 @@ COPY package.json bun.lock ./
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
 
+# Dummy build-time env vars (Next.js needs these to compile; real values come at runtime)
+ENV DATABASE_URL="postgresql://build:build@localhost:5432/build"
+ENV REDIS_URL="redis://localhost:6379"
+ENV NEXTAUTH_SECRET="build-secret-not-used-at-runtime"
+ENV NEXTAUTH_URL="http://localhost:3000"
+
 # Build Next.js app
 RUN cd apps/web && bun run build
 
