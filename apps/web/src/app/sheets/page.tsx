@@ -24,6 +24,9 @@ import { useToast } from '@/hooks';
 import { motion, AnimatePresence } from 'framer-motion';
 import { api } from '@/lib/api-client';
 import { useRouter } from 'next/navigation';
+import { MultiSelect, type SelectOption } from '@/components/ui/multi-select';
+import { DateRangeFilter, type DateRangeOption } from '@/components/filters/DateRangeFilter';
+import { FilterPills, type FilterPill } from '@/components/filters/FilterPills';
 
 type ViewMode = 'grid' | 'list';
 type SortField = 'created_at' | 'title' | 'tasks';
@@ -122,6 +125,13 @@ export default function SheetsLibraryPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
 
+  // Advanced filters
+  const [filters, setFilters] = useState({
+    tags: new Set<string>(),
+    dateRange: 'all' as DateRangeOption,
+    isTemplate: 'all' as 'all' | 'yes' | 'no',
+  });
+
   useEffect(() => {
     loadSheets();
   }, []);
@@ -169,6 +179,44 @@ export default function SheetsLibraryPage() {
       );
     }
 
+    // Tag filter
+    if (filters.tags.size > 0) {
+      result = result.filter((sheet) =>
+        sheet.tags?.some((tag) => filters.tags.has(tag))
+      );
+    }
+
+    // Template filter
+    if (filters.isTemplate !== 'all') {
+      result = result.filter((sheet) => {
+        if (filters.isTemplate === 'yes') return sheet.isTemplate;
+        return !sheet.isTemplate;
+      });
+    }
+
+    // Date range filter
+    if (filters.dateRange !== 'all') {
+      const now = new Date();
+      const getDateRangeStart = (range: DateRangeOption) => {
+        switch (range) {
+          case '7d':
+            return new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+          case '30d':
+            return new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+          case '90d':
+            return new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+          case '1y':
+            return new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
+          default:
+            return null;
+        }
+      };
+      const dateRangeStart = getDateRangeStart(filters.dateRange);
+      if (dateRangeStart) {
+        result = result.filter((sheet) => new Date(sheet.createdAt) >= dateRangeStart);
+      }
+    }
+
     // Sort
     result.sort((a, b) => {
       let comparison = 0;
@@ -189,7 +237,7 @@ export default function SheetsLibraryPage() {
     });
 
     return result;
-  }, [sheets, searchQuery, sortField, sortDirection]);
+  }, [sheets, searchQuery, filters, sortField, sortDirection]);
 
   const handleCreateSheet = async (title: string, description: string | undefined) => {
     try {
@@ -229,6 +277,80 @@ export default function SheetsLibraryPage() {
     }
   };
 
+  // Get unique tags from all sheets
+  const tagOptions = useMemo(() => {
+    const allTags = new Set<string>();
+    sheets.forEach((sheet) => {
+      sheet.tags?.forEach((tag) => allTags.add(tag));
+    });
+    return Array.from(allTags).sort().map((tag) => ({ value: tag, label: tag }));
+  }, [sheets]);
+
+  // Template filter options
+  const templateOptions: SelectOption[] = [
+    { value: 'all', label: 'All Sheets' },
+    { value: 'yes', label: 'Templates Only' },
+    { value: 'no', label: 'Non-Templates' },
+  ];
+
+  // Generate active filter pills
+  const activeFilters = useMemo(() => {
+    const pills: FilterPill[] = [];
+
+    filters.tags.forEach((tag) => {
+      pills.push({ key: 'tag', label: tag, value: tag, color: 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300' });
+    });
+
+    if (filters.isTemplate !== 'all') {
+      pills.push({
+        key: 'isTemplate',
+        label: filters.isTemplate === 'yes' ? 'Template' : 'Non-Template',
+        value: filters.isTemplate,
+        color: 'bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300'
+      });
+    }
+
+    if (filters.dateRange !== 'all') {
+      const dateLabels: Record<string, string> = {
+        '7d': 'Last 7 days',
+        '30d': 'Last 30 days',
+        '90d': 'Last 90 days',
+        '1y': 'Last year',
+      };
+      pills.push({ key: 'dateRange', label: dateLabels[filters.dateRange], value: filters.dateRange, color: 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300' });
+    }
+
+    return pills;
+  }, [filters]);
+
+  // Handle removing a filter
+  const handleRemoveFilter = (key: string, value: string) => {
+    setFilters((prev) => {
+      const newFilters = { ...prev };
+
+      if (key === 'tag') {
+        const newTags = new Set(newFilters.tags);
+        newTags.delete(value);
+        newFilters.tags = newTags;
+      } else if (key === 'isTemplate') {
+        newFilters.isTemplate = 'all';
+      } else if (key === 'dateRange') {
+        newFilters.dateRange = 'all';
+      }
+
+      return newFilters;
+    });
+  };
+
+  // Handle clearing all filters
+  const handleClearAllFilters = () => {
+    setFilters({
+      tags: new Set(),
+      dateRange: 'all',
+      isTemplate: 'all',
+    });
+  };
+
   return (
     <PageLayout maxWidth="2xl">
       <div className="flex flex-col h-full">
@@ -262,6 +384,18 @@ export default function SheetsLibraryPage() {
               </div>
 
               <div className="flex items-center gap-2">
+                <Button
+                  variant={showFilters ? 'primary' : 'ghost'}
+                  icon={<Filter className="w-5 h-5" />}
+                  onClick={() => setShowFilters(!showFilters)}
+                >
+                  Filters {activeFilters.length > 0 && (
+                    <span className="ml-1.5 px-2.5 py-0.5 rounded-full text-sm font-medium bg-blue-500/20 text-blue-600">
+                      {activeFilters.length}
+                    </span>
+                  )}
+                </Button>
+
                 <div className="flex items-center gap-2 bg-gray-100 dark:bg-gray-700/50 rounded-lg p-1">
                   <button
                     onClick={() => setViewMode('grid')}
@@ -287,6 +421,71 @@ export default function SheetsLibraryPage() {
               </div>
             </div>
           </div>
+
+          <AnimatePresence>
+            {showFilters && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                className="border-t border-gray-200 dark:border-gray-700"
+              >
+                <div className="p-6 space-y-4">
+                  {/* Tags Filter - MultiSelect */}
+                  <MultiSelect
+                    label="Tags"
+                    placeholder="All tags"
+                    options={tagOptions}
+                    selectedValues={filters.tags}
+                    onChange={(values) => setFilters((prev) => ({ ...prev, tags: values }))}
+                    searchable={true}
+                  />
+
+                  {/* Template Filter - Select */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="flex flex-col gap-2">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                        Sheet Type
+                      </label>
+                      <div className="flex flex-wrap gap-2">
+                        {templateOptions.map((option) => (
+                          <button
+                            key={option.value}
+                            onClick={() => setFilters((prev) => ({ ...prev, isTemplate: option.value as any }))}
+                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                              filters.isTemplate === option.value
+                                ? 'bg-blue-600 text-white'
+                                : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                            }`}
+                          >
+                            {option.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Date Range Filter */}
+                    <DateRangeFilter
+                      label="Date Range"
+                      selectedRange={filters.dateRange}
+                      onChange={(range) => setFilters((prev) => ({ ...prev, dateRange: range }))}
+                    />
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Active Filter Pills */}
+          {activeFilters.length > 0 && (
+            <div className="px-6 py-3 bg-blue-50 dark:bg-blue-900/10 border-b border-blue-100 dark:border-blue-900/20">
+              <FilterPills
+                filters={activeFilters}
+                onRemove={handleRemoveFilter}
+                onClearAll={handleClearAllFilters}
+              />
+            </div>
+          )}
 
           <div className="px-6 py-4 bg-gray-50 dark:bg-gray-800/50 flex justify-between items-center">
             <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Sort by:</span>

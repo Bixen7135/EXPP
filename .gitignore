@@ -57,3 +57,6 @@ uploads/
 # Database
 *.db
 *.sqlite
+
+# Windows artifacts
+nul

@@ -3,26 +3,26 @@
 ## Authentication
 - [x] Email/Password login (Supabase Auth → Auth.js Credentials)
 - [x] Google OAuth (Supabase Auth → Auth.js Google provider)
-- [x] Session management (Supabase sessions → Auth.js database sessions)
+- [x] Session management (Supabase sessions → Auth.js JWT sessions)
 - [x] Password change
 - [x] User registration with profile creation
 - [x] Auto-create user_settings and user_statistics on signup
 
 ## Database Tables (14 total)
-- [ ] profiles (Supabase → Drizzle)
-- [ ] user_settings (Supabase → Drizzle)
-- [ ] tasks (Supabase → Drizzle with soft delete)
-- [ ] task_sheets (Supabase → Drizzle)
-- [ ] sheet_versions (Supabase → Drizzle)
-- [ ] shared_sheets (Supabase → Drizzle)
-- [ ] task_submissions (Supabase → Drizzle)
-- [ ] sheet_submissions (Supabase → Drizzle)
-- [ ] user_statistics (Supabase → Drizzle)
-- [ ] user_progress (Supabase → Drizzle)
-- [ ] spaced_repetition (Supabase → Drizzle)
-- [ ] adaptive_metrics (Supabase → Drizzle)
-- [ ] study_groups (Supabase → Drizzle)
-- [ ] group_activities (Supabase → Drizzle)
+- [x] profiles (Supabase → Drizzle)
+- [x] user_settings (Supabase → Drizzle)
+- [x] tasks (Supabase → Drizzle with soft delete)
+- [x] task_sheets (Supabase → Drizzle)
+- [x] sheet_versions (Supabase → Drizzle)
+- [x] shared_sheets (Supabase → Drizzle)
+- [x] task_submissions (Supabase → Drizzle)
+- [x] sheet_submissions (Supabase → Drizzle)
+- [x] user_statistics (Supabase → Drizzle)
+- [x] user_progress (Supabase → Drizzle)
+- [x] spaced_repetition (Supabase → Drizzle)
+- [x] adaptive_metrics (Supabase → Drizzle)
+- [x] study_groups (Supabase → Drizzle)
+- [x] group_activities (Supabase → Drizzle)
 
 ## API Endpoints
 - [x] GET/POST /api/tasks (replaces getTasks, saveTasks)
@@ -40,43 +40,43 @@
 - [x] POST /api/submissions/task (replaces saveTaskSubmission)
 - [x] POST /api/submissions/sheet (replaces saveSheetSubmission)
 - [x] GET /api/search (replaces searchQuestions with full-text search)
-- [ ] Study groups endpoints (createStudyGroup, joinStudyGroup, etc.)
+- [ ] Study groups endpoints (createStudyGroup, joinStudyGroup, etc.) — deferred
 - [x] POST /api/openai/chat (proxy with Redis rate limiting)
 - [x] POST /api/export (proxy to export worker with rate limiting)
 
 ## Storage
-- [ ] Avatar uploads (Supabase Storage → local disk volume)
-- [ ] Avatar serving (public URLs → /api/avatars/[file])
+- [x] Avatar uploads (Supabase Storage → local disk volume via /api/profile/avatar)
+- [x] Avatar serving (Next.js serves from public/uploads/avatars/ statically)
 
 ## Database Triggers → Application Code
 - [x] update_user_statistics() trigger → TypeScript in task submission handler
 - [x] update_sheet_statistics() trigger → TypeScript in sheet submission handler
 - [ ] validate_task_ids() trigger → TypeScript validation in sheet create/update
 
-## Frontend Files (23 with Supabase imports)
-- [ ] services/supabase.ts → DELETE, replace with services/api.ts
-- [ ] services/profile.ts → DELETE, moved to API routes
-- [ ] services/settings.ts → DELETE, moved to API routes
-- [ ] services/search.ts → DELETE, moved to API routes
-- [ ] services/studyGroup.ts → DELETE, moved to API routes
-- [ ] services/userStatistics.ts → DELETE, moved to API routes
-- [ ] store/authStore.ts → DELETE, replaced with Auth.js
-- [ ] types/supabase.ts → DELETE, replaced with types/database.ts (Drizzle inferred)
-- [ ] layouts/Navigation.tsx → Update to use Auth.js session
-- [ ] pages/Profile.tsx → Update to use API routes
-- [ ] pages/Settings.tsx → Update to use API routes
-- [ ] pages/TaskLibrary.tsx → Update to use API routes
-- [ ] pages/TaskPreview.tsx → Update to use API routes
-- [ ] pages/TaskForm.tsx → Update to use API routes
-- [ ] pages/SheetsLibrary.tsx → Update to use API routes
-- [ ] pages/SheetView.tsx → Update to use API routes
-- [ ] pages/SheetEdit.tsx → Update to use API routes
-- [ ] components/auth/Statistics.tsx → Update to use API routes
-- [ ] components/StudyGroups.tsx → Update to use API routes
-- [ ] features/tasks/components/TaskSelectorModal.tsx → Update to use API routes
-- [ ] features/tasks/components/TaskSelectModal.tsx → Update to use API routes
-- [ ] features/tasks/components/TaskPreviewActions.tsx → Update to use API routes
-- [ ] features/sheets/components/CreateSheet.tsx → Update to use API routes
+## Frontend Files (old frontend/ directory deleted in Phase C.6)
+- [x] services/supabase.ts → DELETED, replaced with api-client.ts
+- [x] services/profile.ts → DELETED, moved to API routes
+- [x] services/settings.ts → DELETED, moved to API routes
+- [x] services/search.ts → DELETED, moved to API routes
+- [x] services/studyGroup.ts → DELETED (study groups deferred)
+- [x] services/userStatistics.ts → DELETED, moved to API routes
+- [x] store/authStore.ts → DELETED, replaced with Auth.js useAuth hook
+- [x] types/supabase.ts → DELETED, replaced with Drizzle inferred types
+- [x] layouts/Navigation.tsx → Recreated with Auth.js session
+- [x] pages/Profile.tsx → Recreated at /profile
+- [x] pages/Settings.tsx → Recreated at /settings
+- [x] pages/TaskLibrary.tsx → Recreated at /tasks
+- [x] pages/TaskPreview.tsx → Deferred (AI generation flow)
+- [x] pages/TaskForm.tsx → Deferred (AI generation flow)
+- [x] pages/SheetsLibrary.tsx → Recreated at /sheets
+- [x] pages/SheetView.tsx → Recreated at /sheets/[id]
+- [x] pages/SheetEdit.tsx → Recreated at /sheets/[id]/edit
+- [x] components/auth/Statistics.tsx → Recreated at /statistics
+- [x] components/StudyGroups.tsx → Deferred
+- [x] features/tasks/components/TaskSelectorModal.tsx → Recreated as TaskSelector
+- [x] features/tasks/components/TaskSelectModal.tsx → Recreated as TaskSelector
+- [x] features/tasks/components/TaskPreviewActions.tsx → Deferred (AI generation flow)
+- [x] features/sheets/components/CreateSheet.tsx → Integrated into /sheets page
 
 ## Docker Services
 - [x] PostgreSQL 16 container with volume
@@ -85,12 +85,12 @@
 - [x] Export worker container (Pandoc + TexLive)
 
 ## Environment Variables
-- [ ] Remove: VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY
+- [x] Remove: VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY (old frontend deleted)
 - [x] Add: DATABASE_URL, REDIS_URL, NEXTAUTH_SECRET, NEXTAUTH_URL
 - [x] Add: GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET
 - [x] Add: OPENAI_API_KEY, EXPORT_WORKER_URL
 
 ## Package Dependencies
-- [ ] Remove: @supabase/supabase-js, react-router-dom, axios, vite
-- [ ] Add: drizzle-orm, postgres, drizzle-kit
-- [ ] Add: next-auth, @auth/drizzle-adapter, ioredis, bcryptjs, zod
+- [x] Remove: @supabase/supabase-js, react-router-dom, axios, vite (old frontend deleted)
+- [x] Add: drizzle-orm, postgres, drizzle-kit
+- [x] Add: next-auth, @auth/drizzle-adapter, ioredis, bcryptjs, zod

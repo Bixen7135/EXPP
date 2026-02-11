@@ -3,7 +3,7 @@ import { cn } from '@/lib/utils';
 
 interface PageLayoutProps {
   children: React.ReactNode;
-  maxWidth?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '6xl' | 'full';
+  maxWidth?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '4xl' | '6xl' | 'full';
   className?: string;
 }
 
@@ -14,6 +14,7 @@ export const PageLayout = ({ children, maxWidth = 'xl', className }: PageLayoutP
     lg: 'max-w-3xl',
     xl: 'max-w-4xl',
     '2xl': 'max-w-6xl',
+    '4xl': 'max-w-6xl',
     '6xl': 'max-w-7xl',
     full: 'max-w-full'
   };

@@ -24,26 +24,22 @@ import { Button } from '@/components/ui';
 import { useToast } from '@/hooks';
 import { motion, AnimatePresence } from 'framer-motion';
 import { api } from '@/lib/api-client';
+import { MultiSelect, type SelectOption } from '@/components/ui/multi-select';
+import { DateRangeFilter, type DateRangeOption } from '@/components/filters/DateRangeFilter';
+import { FilterPills, type FilterPill } from '@/components/filters/FilterPills';
+import { TaskCreateModal } from '@/components/tasks/TaskCreateModal';
+import { TaskEditModal } from '@/components/tasks/TaskEditModal';
+import type { Task } from '@/types';
 
 type SortKey = 'date' | 'topic' | 'difficulty' | 'type';
 type ViewMode = 'grid' | 'list';
-
-interface Task {
-  id: string;
-  text: string;
-  type: string;
-  topic: string;
-  difficulty: 'easy' | 'medium' | 'hard';
-  answer?: string | null;
-  solution?: string | null;
-  createdAt: string;
-}
 
 interface Filters {
   search: string;
   topics: Set<string>;
   difficulties: Set<string>;
   types: Set<string>;
+  dateRange: 'all' | '7d' | '30d' | '90d' | '1y';
 }
 
 const getDifficultyColor = (difficulty: string) => {
@@ -62,6 +58,33 @@ const getTypeColor = (type: string) => {
 const getTopicColor = (topic: string) => {
   return 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300';
 };
+
+// Filter options
+const TOPIC_OPTIONS: SelectOption[] = [
+  { value: 'math', label: 'Mathematics' },
+  { value: 'physics', label: 'Physics' },
+  { value: 'chemistry', label: 'Chemistry' },
+  { value: 'biology', label: 'Biology' },
+  { value: 'history', label: 'History' },
+  { value: 'geography', label: 'Geography' },
+  { value: 'literature', label: 'Literature' },
+  { value: 'computer-science', label: 'Computer Science' },
+  { value: 'economics', label: 'Economics' },
+  { value: 'other', label: 'Other' },
+];
+
+const DIFFICULTY_OPTIONS: SelectOption[] = [
+  { value: 'easy', label: 'Easy' },
+  { value: 'medium', label: 'Medium' },
+  { value: 'hard', label: 'Hard' },
+];
+
+const TYPE_OPTIONS: SelectOption[] = [
+  { value: 'choice', label: 'Multiple Choice' },
+  { value: 'text', label: 'Text Answer' },
+  { value: 'numeric', label: 'Numeric' },
+  { value: 'true-false', label: 'True/False' },
+];
 
 const TaskCard = ({
   task,
@@ -183,12 +206,15 @@ export default function TaskLibraryPage() {
   const [expandedAnswers, setExpandedAnswers] = useState<Set<string>>(new Set());
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
+  const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
+  const [taskToEdit, setTaskToEdit] = useState<Task | null>(null);
 
   const [filters, setFilters] = useState<Filters>({
     search: '',
     topics: new Set<string>(),
     difficulties: new Set<string>(),
     types: new Set<string>(),
+    dateRange: 'all',
   });
 
   // Get unique values for filters
@@ -223,6 +249,24 @@ export default function TaskLibraryPage() {
   };
 
   const filteredAndSortedTasks = useMemo(() => {
+    const now = new Date();
+    const getDateRangeStart = (range: DateRangeOption) => {
+      switch (range) {
+        case '7d':
+          return new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        case '30d':
+          return new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        case '90d':
+          return new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+        case '1y':
+          return new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
+        default:
+          return null;
+      }
+    };
+
+    const dateRangeStart = getDateRangeStart(filters.dateRange);
+
     return tasks
       .filter((task) => {
         const matchesSearch =
@@ -233,8 +277,11 @@ export default function TaskLibraryPage() {
         const matchesDifficulty = filters.difficulties.size === 0 || filters.difficulties.has(task.difficulty);
         const matchesType = filters.types.size === 0 || filters.types.has(task.type);
         const matchesTopic = filters.topics.size === 0 || filters.topics.has(task.topic);
+        const matchesDateRange = filters.dateRange === 'all' || (
+          dateRangeStart && new Date(task.createdAt) >= dateRangeStart
+        );
 
-        return matchesSearch && matchesDifficulty && matchesType && matchesTopic;
+        return matchesSearch && matchesDifficulty && matchesType && matchesTopic && matchesDateRange;
       })
       .sort((a, b) => {
         let comparison = 0;
@@ -311,6 +358,96 @@ export default function TaskLibraryPage() {
     }
   };
 
+  // Generate active filter pills
+  const activeFilters = useMemo(() => {
+    const pills: FilterPill[] = [];
+
+    filters.topics.forEach((value) => {
+      const option = TOPIC_OPTIONS.find((opt) => opt.value === value);
+      if (option) {
+        pills.push({ key: 'topic', label: option.label, value });
+      }
+    });
+
+    filters.difficulties.forEach((value) => {
+      const option = DIFFICULTY_OPTIONS.find((opt) => opt.value === value);
+      if (option) {
+        pills.push({ key: 'difficulty', label: option.label, value, color: 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300' });
+      }
+    });
+
+    filters.types.forEach((value) => {
+      const option = TYPE_OPTIONS.find((opt) => opt.value === value);
+      if (option) {
+        pills.push({ key: 'type', label: option.label, value, color: 'bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300' });
+      }
+    });
+
+    if (filters.dateRange !== 'all') {
+      const dateLabels: Record<string, string> = {
+        '7d': 'Last 7 days',
+        '30d': 'Last 30 days',
+        '90d': 'Last 90 days',
+        '1y': 'Last year',
+      };
+      pills.push({ key: 'dateRange', label: dateLabels[filters.dateRange], value: filters.dateRange, color: 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300' });
+    }
+
+    return pills;
+  }, [filters]);
+
+  // Handle removing a filter
+  const handleRemoveFilter = (key: string, value: string) => {
+    setFilters((prev) => {
+      const newFilters = { ...prev };
+
+      if (key === 'topic') {
+        const newTopics = new Set(newFilters.topics);
+        newTopics.delete(value);
+        newFilters.topics = newTopics;
+      } else if (key === 'difficulty') {
+        const newDifficulties = new Set(newFilters.difficulties);
+        newDifficulties.delete(value);
+        newFilters.difficulties = newDifficulties;
+      } else if (key === 'type') {
+        const newTypes = new Set(newFilters.types);
+        newTypes.delete(value);
+        newFilters.types = newTypes;
+      } else if (key === 'dateRange') {
+        newFilters.dateRange = 'all';
+      }
+
+      return newFilters;
+    });
+  };
+
+  // Handle clearing all filters
+  const handleClearAllFilters = () => {
+    setFilters({
+      search: '',
+      topics: new Set(),
+      difficulties: new Set(),
+      types: new Set(),
+      dateRange: 'all',
+    });
+  };
+
+  // Handle edit task
+  const handleEditTask = (task: Task) => {
+    setTaskToEdit(task);
+    setEditingTaskId(task.id);
+  };
+
+  // Handle create success
+  const handleCreateSuccess = () => {
+    loadTasks();
+  };
+
+  // Handle update success
+  const handleUpdateSuccess = () => {
+    loadTasks();
+  };
+
   return (
     <PageLayout maxWidth="2xl">
       <div className="flex flex-col h-full">
@@ -372,9 +509,9 @@ export default function TaskLibraryPage() {
                   icon={<Filter className="w-5 h-5" />}
                   onClick={() => setShowFilters(!showFilters)}
                 >
-                  Filters {filters.topics.size + filters.types.size + filters.difficulties.size > 0 && (
+                  Filters {activeFilters.length > 0 && (
                     <span className="ml-1.5 px-2.5 py-0.5 rounded-full text-sm font-medium bg-blue-500/20 text-blue-600">
-                      {filters.topics.size + filters.types.size + filters.difficulties.size}
+                      {activeFilters.length}
                     </span>
                   )}
                 </Button>
@@ -391,69 +528,55 @@ export default function TaskLibraryPage() {
                 className="border-t border-gray-200 dark:border-gray-700"
               >
                 <div className="p-6 space-y-4">
-                  {/* Difficulty Filter */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Difficulty</label>
-                    <div className="flex flex-wrap gap-2">
-                      {['easy', 'medium', 'hard'].map((diff) => (
-                        <button
-                          key={diff}
-                          onClick={() => {
-                            setFilters((prev) => {
-                              const newDifficulties = new Set(prev.difficulties);
-                              if (newDifficulties.has(diff)) {
-                                newDifficulties.delete(diff);
-                              } else {
-                                newDifficulties.add(diff);
-                              }
-                              return { ...prev, difficulties: newDifficulties };
-                            });
-                          }}
-                          className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                            filters.difficulties.has(diff)
-                              ? 'bg-blue-600 text-white'
-                              : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
-                          }`}
-                        >
-                          {diff.charAt(0).toUpperCase() + diff.slice(1)}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
+                  {/* Topic Filter - MultiSelect */}
+                  <MultiSelect
+                    label="Topics"
+                    placeholder="All topics"
+                    options={TOPIC_OPTIONS}
+                    selectedValues={filters.topics}
+                    onChange={(values) => setFilters((prev) => ({ ...prev, topics: values }))}
+                    searchable={true}
+                  />
 
-                  {/* Type Filter */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Type</label>
-                    <div className="flex flex-wrap gap-2">
-                      {types.map((type) => (
-                        <button
-                          key={type}
-                          onClick={() => {
-                            setFilters((prev) => {
-                              const newTypes = new Set(prev.types);
-                              if (newTypes.has(type)) {
-                                newTypes.delete(type);
-                              } else {
-                                newTypes.add(type);
-                              }
-                              return { ...prev, types: newTypes };
-                            });
-                          }}
-                          className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                            filters.types.has(type)
-                              ? 'bg-blue-600 text-white'
-                              : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
-                          }`}
-                        >
-                          {type}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
+                  {/* Difficulty Filter - MultiSelect */}
+                  <MultiSelect
+                    label="Difficulty"
+                    placeholder="All difficulties"
+                    options={DIFFICULTY_OPTIONS}
+                    selectedValues={filters.difficulties}
+                    onChange={(values) => setFilters((prev) => ({ ...prev, difficulties: values }))}
+                  />
+
+                  {/* Type Filter - MultiSelect */}
+                  <MultiSelect
+                    label="Type"
+                    placeholder="All types"
+                    options={TYPE_OPTIONS}
+                    selectedValues={filters.types}
+                    onChange={(values) => setFilters((prev) => ({ ...prev, types: values }))}
+                  />
+
+                  {/* Date Range Filter */}
+                  <DateRangeFilter
+                    label="Date Range"
+                    selectedRange={filters.dateRange}
+                    onChange={(range) => setFilters((prev) => ({ ...prev, dateRange: range }))}
+                  />
                 </div>
               </motion.div>
             )}
           </AnimatePresence>
+
+          {/* Active Filter Pills */}
+          {activeFilters.length > 0 && (
+            <div className="px-6 py-3 bg-blue-50 dark:bg-blue-900/10 border-b border-blue-100 dark:border-blue-900/20">
+              <FilterPills
+                filters={activeFilters}
+                onRemove={handleRemoveFilter}
+                onClearAll={handleClearAllFilters}
+              />
+            </div>
+          )}
 
           <div className="px-6 py-4 bg-gray-50 dark:bg-gray-800/50 flex justify-between items-center">
             <span className="text-sm font-medium text-gray-600 dark:text-gray-400">
@@ -552,7 +675,7 @@ export default function TaskLibraryPage() {
                   task={task}
                   isSelected={selectedTasks.has(task.id)}
                   onSelect={() => handleTaskClick(task.id)}
-                  onEdit={() => {/* TODO: Implement edit modal */}}
+                  onEdit={() => handleEditTask(task)}
                   onDelete={() => handleDelete(task.id)}
                   showAnswer={expandedAnswers.has(task.id)}
                   onToggleAnswer={() => toggleAnswer(task.id)}
@@ -638,26 +761,24 @@ export default function TaskLibraryPage() {
           )}
         </AnimatePresence>
 
-        {/* Create Task Modal Placeholder */}
-        {isCreating && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-6 max-w-2xl w-full border border-gray-200 dark:border-gray-700"
-            >
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">Create Task</h2>
-              <p className="text-gray-600 dark:text-gray-400 mb-6">Task creation form will be implemented here.</p>
-              <div className="flex justify-end gap-3">
-                <Button variant="ghost" onClick={() => setIsCreating(false)}>
-                  Cancel
-                </Button>
-                <Button variant="primary" onClick={() => setIsCreating(false)}>
-                  Create
-                </Button>
-              </div>
-            </motion.div>
-          </div>
+        {/* Create Task Modal */}
+        <TaskCreateModal
+          isOpen={isCreating}
+          onClose={() => setIsCreating(false)}
+          onSuccess={handleCreateSuccess}
+        />
+
+        {/* Edit Task Modal */}
+        {taskToEdit && (
+          <TaskEditModal
+            isOpen={editingTaskId !== null}
+            onClose={() => {
+              setEditingTaskId(null);
+              setTaskToEdit(null);
+            }}
+            task={taskToEdit}
+            onSuccess={handleUpdateSuccess}
+          />
         )}
       </div>
     </PageLayout>
