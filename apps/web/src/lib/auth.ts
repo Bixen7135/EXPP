@@ -37,6 +37,7 @@ const signUpSchema = z.object({
 });
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
+  trustHost: true,
   adapter: DrizzleAdapter(db as any, {
     usersTable: users as any,
     accountsTable: accounts as any,

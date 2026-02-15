@@ -1,5 +1,10 @@
 # Multi-stage build for Next.js app with Bun
-FROM oven/bun:1-alpine AS base
+# Using pinned version for reproducible builds (Docker best practice Rule 2)
+# Bun 1.3.9 released February 2026
+FROM oven/bun:1.3.9-alpine AS base
+
+# Install curl for healthchecks
+RUN apk add --no-cache curl
 
 # Install dependencies stage
 FROM base AS deps
@@ -24,6 +29,9 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY apps/web ./apps/web
 COPY packages/db ./packages/db
 COPY package.json bun.lock ./
+
+# Copy startup script
+COPY apps/web/scripts/startup.sh ./apps/web/scripts/startup.sh
 
 # Set build environment
 ENV NEXT_TELEMETRY_DISABLED=1
@@ -55,6 +63,10 @@ COPY --from=builder --chown=nextjs:nodejs /app/apps/web/public ./apps/web/public
 COPY --from=builder --chown=nextjs:nodejs /app/packages/db ./packages/db
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules ./node_modules
 
+# Copy startup script and make it executable
+COPY --from=builder --chown=nextjs:nodejs /app/apps/web/scripts/startup.sh ./apps/web/scripts/startup.sh
+RUN chmod +x ./apps/web/scripts/startup.sh
+
 # Set environment
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
@@ -65,5 +77,9 @@ USER nextjs
 
 EXPOSE 3000
 
-# Start Next.js server
-CMD ["bun", "run", "apps/web/server.js"]
+# Health check to verify service is responding (Docker best practice Rule 12)
+HEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \
+  CMD bun run -e 'fetch("http://localhost:3000/api/health").then(r => r.ok ? process.exit(0) : process.exit(1)).catch(() => process.exit(1))'
+
+# Run migrations then start Next.js server
+CMD ["./apps/web/scripts/startup.sh"]

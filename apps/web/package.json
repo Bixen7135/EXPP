@@ -7,7 +7,14 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest",
+    "test:ui": "vitest --run __tests__/unit/components",
+    "test:unit": "vitest --run __tests__/unit",
+    "test:integration": "vitest --run __tests__/integration",
+    "test:e2e": "vitest --run __tests__/e2e",
+    "test:coverage": "vitest --coverage",
+    "test:watch": "vitest --watch"
   },
   "dependencies": {
     "@auth/drizzle-adapter": "^1.11.1",

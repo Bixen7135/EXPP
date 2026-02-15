@@ -68,6 +68,12 @@ services:
       - "${WEB_PORT:-3000}:3000"
     volumes:
       - avatar_uploads:/app/public/uploads/avatars
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3000/api/health || exit 1"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 60s
     networks:
       - expp-network
 
@@ -83,6 +89,12 @@ services:
       - PORT=3001
     ports:
       - "${EXPORT_WORKER_PORT:-3001}:3001"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3001/health || exit 1"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
     deploy:
       resources:
         limits:

@@ -1,7 +1,10 @@
 # Export Worker Dockerfile with Pandoc + TexLive
-FROM debian:bookworm-slim AS base
+# Using pinned version for reproducible builds (Docker best practice Rule 2)
+# Debian 12.13 Bookworm released January 2026
+FROM debian:bookworm-20260202-slim AS base
 
 # Install system dependencies for pandoc and texlive
+# Combined in single RUN to minimize layers (Docker best practice Rule 5)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     wget \
@@ -15,9 +18,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     texlive-lang-cyrillic \
   && rm -rf /var/lib/apt/lists/*
 
-# Install Bun
-RUN curl -fsSL https://bun.sh/install | bash
-ENV PATH="/root/.bun/bin:${PATH}"
+# Install Bun system-wide for non-root access (Docker best practice Rule 9)
+# Installing Bun 1.3.9 to match web app version
+RUN curl -fsSL https://bun.sh/install | bash -s "bun-v1.3.9" && \
+    mv /root/.bun /opt/bun && \
+    ln -s /opt/bun/bin/bun /usr/local/bin/bun && \
+    chmod -R 755 /opt/bun
 
 # Dependencies stage
 FROM base AS deps
@@ -49,15 +55,25 @@ RUN bun run build
 FROM base AS runner
 WORKDIR /app
 
-# Copy built app
-COPY --from=builder /app/apps/export-worker/dist ./dist
-COPY --from=builder /app/apps/export-worker/package.json ./package.json
+# Create non-root user for security (Docker best practice Rule 9)
+RUN groupadd -r app && useradd -r -g app app
+
+# Copy built app with correct ownership
+COPY --from=builder --chown=app:app /app/apps/export-worker/dist ./dist
+COPY --from=builder --chown=app:app /app/apps/export-worker/package.json ./package.json
 
 # Set environment
 ENV NODE_ENV=production
 ENV PORT=3001
 
+# Switch to non-root user
+USER app
+
 EXPOSE 3001
+
+# Health check to verify service is responding (Docker best practice Rule 12)
+HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
+  CMD curl -f http://localhost:3001/health || exit 1
 
 # Run the worker
 CMD ["bun", "run", "dist/index.js"]

@@ -23,13 +23,14 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
 
     // Parse and validate query parameters
+    // Convert null to undefined for optional fields (searchParams.get returns null when not present)
     const query = listTasksQuerySchema.parse({
-      page: searchParams.get('page'),
-      limit: searchParams.get('limit'),
-      type: searchParams.get('type'),
-      topic: searchParams.get('topic'),
-      difficulty: searchParams.get('difficulty'),
-      includeDeleted: searchParams.get('includeDeleted'),
+      page: searchParams.get('page') ?? undefined,
+      limit: searchParams.get('limit') ?? undefined,
+      type: searchParams.get('type') ?? undefined,
+      topic: searchParams.get('topic') ?? undefined,
+      difficulty: searchParams.get('difficulty') ?? undefined,
+      includeDeleted: searchParams.get('includeDeleted') ?? undefined,
     });
 
     const { page, limit, offset } = validatePagination(searchParams, query.limit);

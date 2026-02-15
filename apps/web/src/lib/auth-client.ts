@@ -23,8 +23,8 @@ export interface AuthState {
 
 // Auth actions interface
 export interface AuthActions {
-  signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string, firstName: string, lastName?: string) => Promise<void>;
+  signIn: (email: string, password: string) => Promise<boolean>;
+  signUp: (email: string, password: string, firstName: string, lastName?: string) => Promise<boolean>;
   signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
   changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
@@ -59,7 +59,7 @@ export function useAuth(): UseAuthReturn {
   const initialized = status !== 'loading';
 
   // Sign in with email/password
-  const handleSignIn = useCallback(async (email: string, password: string) => {
+  const handleSignIn = useCallback(async (email: string, password: string): Promise<boolean> => {
     try {
       setError(null);
       setActionLoading(true);
@@ -74,9 +74,13 @@ export function useAuth(): UseAuthReturn {
         setError(result.error === 'CredentialsSignin'
           ? 'Invalid email or password'
           : result.error);
+        return false;
       }
+
+      return true;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to sign in');
+      return false;
     } finally {
       setActionLoading(false);
     }
@@ -88,7 +92,7 @@ export function useAuth(): UseAuthReturn {
     password: string,
     firstName: string,
     lastName?: string
-  ) => {
+  ): Promise<boolean> => {
     try {
       setError(null);
       setActionLoading(true);
@@ -106,13 +110,21 @@ export function useAuth(): UseAuthReturn {
       }
 
       // Auto sign in after registration
-      await signIn('credentials', {
+      const result = await signIn('credentials', {
         email,
         password,
         redirect: false,
       });
+
+      if (result?.error) {
+        setError('Registration successful, but auto sign-in failed. Please sign in manually.');
+        return false;
+      }
+
+      return true;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to sign up');
+      return false;
     } finally {
       setActionLoading(false);
     }

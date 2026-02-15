@@ -30,12 +30,12 @@ export async function requireAuth() {
 }
 
 /**
- * Get user ID - throws if not authenticated
+ * Get user ID for API routes - throws error (not redirect) if not authenticated
  */
 export async function getUserId(): Promise<string> {
-  const session = await requireAuth();
-  if (!session.user?.id) {
-    throw new Error("User ID not found in session");
+  const session = await auth();
+  if (!session?.user?.id) {
+    throw new Error("User is not authenticated");
   }
   return session.user.id;
 }

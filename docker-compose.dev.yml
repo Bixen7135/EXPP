@@ -1,0 +1,58 @@
+# Docker Compose Development Override
+# Usage: docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+
+services:
+  # Next.js Web App - Development Mode with Hot Reload
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        - NODE_ENV=development
+    working_dir: /app/apps/web
+    environment:
+      - NODE_ENV=development
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-expp_user}:${POSTGRES_PASSWORD:-changeme}@postgres:5432/${POSTGRES_DB:-expp}
+      - REDIS_URL=redis://:${REDIS_PASSWORD:-changeme}@redis:6379
+      - NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
+      - NEXTAUTH_URL=${NEXTAUTH_URL:-http://localhost:3000}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - AUTH_TRUST_HOST=true
+      - EXPORT_WORKER_URL=http://export-worker:3001
+      - UPLOAD_DIR=/app/public/uploads/avatars
+    volumes:
+      # Mount source code for hot reload
+      - ./apps/web:/app/apps/web
+      - ./packages:/app/packages
+      # Prevent overwriting node_modules and build artifacts
+      - /app/node_modules
+      - /app/.next
+      - /app/apps/web/node_modules
+      - avatar_uploads:/app/public/uploads/avatars
+    command: bun run dev
+
+  # Export Worker - Development Mode
+  export-worker:
+    build:
+      context: .
+      dockerfile: apps/export-worker/Dockerfile
+      args:
+        - NODE_ENV=development
+    working_dir: /app/apps/export-worker
+    environment:
+      - NODE_ENV=development
+      - PORT=3001
+    volumes:
+      # Mount source code for hot reload
+      - ./apps/export-worker:/app/apps/export-worker
+      - ./packages:/app/packages
+      # Prevent overwriting node_modules
+      - /app/node_modules
+      - /app/apps/export-worker/node_modules
+    command: bun run dev
+
+volumes:
+  avatar_uploads:
+    driver: local

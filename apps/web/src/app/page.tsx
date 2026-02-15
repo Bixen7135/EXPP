@@ -30,12 +30,7 @@ export default function Home() {
     averageScore: number;
   } | null>(null);
   const [statsLoading, setStatsLoading] = useState(false);
-
-  useEffect(() => {
-    if (user && initialized) {
-      fetchQuickStats();
-    }
-  }, [user, initialized]);
+  const [fetchError, setFetchError] = useState(false);
 
   const fetchQuickStats = async () => {
     try {
@@ -49,10 +44,32 @@ export default function Home() {
       });
     } catch (error) {
       console.error('Failed to fetch statistics:', error);
+      setFetchError(true);
+
+      // Only show toast for non-503 errors (avoid spamming during startup)
+      if (error instanceof Error && !error.message.includes('503')) {
+        showToast('Unable to fetch your statistics. Please try refreshing the page.', 'error');
+      }
+
+      // Set empty statistics on error to prevent infinite retry loop
+      setStatistics({
+        solvedTasks: 0,
+        solvedSheets: 0,
+        successRate: 0,
+        averageScore: 0,
+      });
     } finally {
       setStatsLoading(false);
     }
   };
+
+  useEffect(() => {
+    // Guard against repeated fetches if error already occurred
+    if (user && initialized && !fetchError) {
+      fetchQuickStats();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, initialized]);
 
   // Show loading state while checking auth
   if (!initialized || loading) {

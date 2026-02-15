@@ -1,9 +1,11 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-client';
 
 export function SignInForm() {
+  const router = useRouter();
   const { signIn, signInWithGoogle, signUp, loading, error, clearError } = useAuth();
   const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState('');
@@ -18,10 +20,17 @@ export function SignInForm() {
     setSuccessMessage('');
 
     if (isSignUp) {
-      await signUp(email, password, firstName, lastName || undefined);
-      setSuccessMessage('Account created successfully!');
+      const success = await signUp(email, password, firstName, lastName || undefined);
+      if (success) {
+        setSuccessMessage('Account created successfully! Redirecting...');
+        setTimeout(() => router.push('/'), 1000);
+      }
     } else {
-      await signIn(email, password);
+      const success = await signIn(email, password);
+      if (success) {
+        // Successful sign in - redirect to home
+        router.push('/');
+      }
     }
   };
 
