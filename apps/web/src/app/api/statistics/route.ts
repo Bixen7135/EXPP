@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { db, userStatistics, eq } from '@expp/db';
+import { db, users, profiles, userSettings, userStatistics, eq } from '@expp/db';
 import { getUserId } from '@/lib/auth-helpers';
 import { buildSuccessResponse, handleApiError } from '@/lib/api-helpers';
 
@@ -44,27 +44,73 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // Auto-initialize statistics if they don't exist
-    // Use onConflictDoNothing to handle race conditions
-    const [newStats] = await db
-      .insert(userStatistics)
-      .values({
+    // user_statistics.user_id -> profiles.id -> users.id (FK chain).
+    // Before inserting stats we must guarantee a profile row exists.
+    // Run everything in a transaction so there are no partial states.
+    const [newStats] = await db.transaction(async (tx) => {
+      // 1. Verify the user actually exists in the users table.
+      //    A stale JWT (e.g. after a DB reset) will have a userId that no
+      //    longer exists, so bail out early instead of hitting the FK.
+      const [dbUser] = await tx
+        .select()
+        .from(users)
+        .where(eq(users.id, userId))
+        .limit(1);
+
+      if (!dbUser) {
+        // Return a sentinel so the caller can respond with 401.
+        return [null] as const;
+      }
+
+      // 2. Ensure profile row exists (creates it when missing — e.g. OAuth
+      //    users whose signIn callback failed, or pre-migration accounts).
+      await tx.insert(profiles).values({
+        id: userId,
+        firstName: (dbUser.name ?? '').split(' ')[0] ?? '',
+        lastName: (dbUser.name ?? '').split(' ').slice(1).join(' '),
+        avatarUrl: dbUser.image ?? null,
+        preferences: {},
+        isAdmin: false,
+      }).onConflictDoNothing();
+
+      // 3. Ensure user_settings row exists.
+      await tx.insert(userSettings).values({
         userId,
-        solvedTasks: 0,
-        totalTaskAttempts: 0,
-        solvedSheets: 0,
-        totalSheetAttempts: 0,
-        successRate: '0',
-        averageScore: '0',
-        totalTimeSpent: 0,
-        tasksByDifficulty: { easy: 0, medium: 0, hard: 0 },
-        tasksByTopic: {},
-        tasksByType: {},
-        recentActivity: 0,
-        lastActivityAt: null,
-      })
-      .onConflictDoNothing()
-      .returning();
+        theme: 'light',
+        language: 'en',
+        notificationsEnabled: true,
+        preferences: {},
+      }).onConflictDoNothing();
+
+      // 4. Insert statistics (profile is guaranteed to exist now).
+      return tx
+        .insert(userStatistics)
+        .values({
+          userId,
+          solvedTasks: 0,
+          totalTaskAttempts: 0,
+          solvedSheets: 0,
+          totalSheetAttempts: 0,
+          successRate: '0',
+          averageScore: '0',
+          totalTimeSpent: 0,
+          tasksByDifficulty: { easy: 0, medium: 0, hard: 0 },
+          tasksByTopic: {},
+          tasksByType: {},
+          recentActivity: 0,
+          lastActivityAt: null,
+        })
+        .onConflictDoNothing()
+        .returning();
+    });
+
+    // Stale session — user no longer exists in the DB.
+    if (newStats === null) {
+      return Response.json(
+        { success: false, error: 'Session is no longer valid, please sign in again' },
+        { status: 401 }
+      );
+    }
 
     // If conflict occurred, re-query the existing record
     if (!newStats) {

@@ -60,62 +60,61 @@ export async function registerUser(data: {
     throw new Error("User with this email already exists");
   }
 
-  // Hash password
+  // Hash password outside the transaction (CPU-bound, no DB rollback needed)
   const hashedPassword = await bcrypt.hash(data.password, 10);
 
-  // Create user
-  const [newUser] = await db
-    .insert(users)
-    .values({
-      email: data.email,
-      password: hashedPassword,
-      name: `${data.firstName} ${data.lastName || ""}`.trim(),
-      emailVerified: null,
-      image: null,
-    })
-    .returning();
+  // Wrap all inserts in a transaction so a partial failure leaves no orphaned rows
+  return await db.transaction(async (tx) => {
+    const [newUser] = await tx
+      .insert(users)
+      .values({
+        email: data.email,
+        password: hashedPassword,
+        name: `${data.firstName} ${data.lastName || ""}`.trim(),
+        emailVerified: null,
+        image: null,
+      })
+      .returning();
 
-  // Create profile
-  await db.insert(profiles).values({
-    id: newUser.id,
-    firstName: data.firstName,
-    lastName: data.lastName || "",
-    avatarUrl: null,
-    preferences: {},
-    isAdmin: false,
+    await tx.insert(profiles).values({
+      id: newUser.id,
+      firstName: data.firstName,
+      lastName: data.lastName || "",
+      avatarUrl: null,
+      preferences: {},
+      isAdmin: false,
+    });
+
+    await tx.insert(userSettings).values({
+      userId: newUser.id,
+      theme: "light",
+      language: "en",
+      notificationsEnabled: true,
+      preferences: {},
+    });
+
+    await tx.insert(userStatistics).values({
+      userId: newUser.id,
+      solvedTasks: 0,
+      totalTaskAttempts: 0,
+      solvedSheets: 0,
+      totalSheetAttempts: 0,
+      successRate: "0",
+      averageScore: "0",
+      totalTimeSpent: 0,
+      tasksByDifficulty: { easy: 0, medium: 0, hard: 0 },
+      tasksByTopic: {},
+      tasksByType: {},
+      recentActivity: 0,
+      lastActivityAt: new Date(),
+    });
+
+    return {
+      id: newUser.id,
+      email: newUser.email,
+      name: newUser.name,
+    };
   });
-
-  // Create user settings
-  await db.insert(userSettings).values({
-    userId: newUser.id,
-    theme: "light",
-    language: "en",
-    notificationsEnabled: true,
-    preferences: {},
-  });
-
-  // Create user statistics
-  await db.insert(userStatistics).values({
-    userId: newUser.id,
-    solvedTasks: 0,
-    totalTaskAttempts: 0,
-    solvedSheets: 0,
-    totalSheetAttempts: 0,
-    successRate: "0",
-    averageScore: "0",
-    totalTimeSpent: 0,
-    tasksByDifficulty: { easy: 0, medium: 0, hard: 0 },
-    tasksByTopic: {},
-    tasksByType: {},
-    recentActivity: 0,
-    lastActivityAt: new Date(),
-  });
-
-  return {
-    id: newUser.id,
-    email: newUser.email,
-    name: newUser.name,
-  };
 }
 
 /**
